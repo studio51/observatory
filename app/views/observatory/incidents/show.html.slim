@@ -1,0 +1,106 @@
+/ One incident, read as a sequence rather than as a wall of graphs. The timeline
+/ is the whole point: six unrelated charts leave the reader to do the
+/ correlation, and correlation across charts at 3am is what people get wrong.
+.column.gap-y-6
+
+  .cell-auto.column.gap-2
+    = link_to("← #{ t('.back') }", incidents_path(carried_params), class: 'link yellow text-xs')
+    .row.items-start.justify-between.flex-wrap.gap-4
+      h1.text-2xl.font-light.text-white = @incident.title
+      .row.items-center.gap-2
+        span class="text-[10px] uppercase tracking-wider px-2 py-1 rounded ring-1 #{ observatory_severity_class(@incident.severity) }"
+          = @incident.severity
+        span class="text-[10px] uppercase tracking-wider text-gray-500"
+          = t('.confidence', level: @incident.confidence)
+
+  .grid.grid-cols-2.gap-4 class="md:grid-cols-4"
+    = render('observatory/shared/panel', title: t('.constrained'),
+             headline: @incident.constrained_resource, state: :critical)
+    = render('observatory/shared/panel', title: t('.contributor'),
+             headline: @incident.primary_contributor || '—', state: :warning)
+    = render('observatory/shared/panel', title: t('.started'),
+             headline: @incident.started_at.strftime('%H:%M:%S'), state: :ok,
+             subtitle: @incident.started_at.strftime('%d %b %Y'))
+    = render('observatory/shared/panel', title: t('.duration'),
+             headline: observatory_seconds(@incident.duration_seconds), state: :ok,
+             subtitle: t('.detections', count: @incident.occurrence_count))
+
+  - if @incident.failure_mode.present?
+    .cell-auto.card.p-5.column.gap-2 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.failure_mode')
+      p.text-sm.text-gray-200.leading-relaxed = @incident.failure_mode
+
+  .cell-auto.card.p-5 class="ring-1 ring-white/5"
+    = render('observatory/shared/evidence', supporting: @incident.supporting_evidence,
+             contradicting: @incident.contradicting_evidence)
+
+  / --- The causal timeline ---
+
+  - if @timeline.any?
+    .cell-auto.card.p-5.column.gap-4 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.timeline')
+      .column.gap-0
+        - @timeline.each do |entry|
+          .row.items-start.gap-4.py-2 class="border-l-2 pl-4 #{ entry.severity == :critical ? 'border-red-500/50' : entry.severity == :warning ? 'border-amber-500/50' : 'border-white/10' }"
+            span.text-xs.font-mono.text-gray-500.shrink-0.w-20
+              = entry.at.strftime('%H:%M:%S')
+            span class="text-[10px] uppercase tracking-wider text-gray-600 shrink-0 w-24"
+              = entry.kind.to_s.tr('_', ' ')
+            span.text-sm.text-gray-300.flex-1 = entry.summary
+
+  / --- Impact and what to do ---
+
+  .grid.grid-cols-1.gap-4 class="md:grid-cols-2"
+    - if @incident.impact.present?
+      .card.p-4.column.gap-2 class="ring-1 ring-white/5"
+        span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.impact')
+        p.text-sm.text-gray-300.leading-relaxed = @incident.impact
+    - if @incident.recommended_action.present?
+      .card.p-4.column.gap-2 class="ring-1 ring-amber-500/20"
+        span class="text-xs uppercase tracking-wider text-amber-400" = t('.recommended')
+        p.text-sm.text-gray-300.leading-relaxed = @incident.recommended_action
+
+  / --- Deployment correlation, stated as correlation ---
+
+  - if @deployment
+    .cell-auto.card.p-4.column.gap-2 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.deployment')
+      .row.flex-wrap.gap-x-6.gap-y-1.text-xs
+        span.text-gray-300.font-mono = @deployment.release
+        - if @deployment.branch.present?
+          span.text-gray-500 = @deployment.branch
+        span.text-gray-500 = @deployment.deployed_at.strftime('%d %b %H:%M')
+        span.text-gray-500
+          = t('.deployed_before', duration: observatory_seconds((@incident.started_at - @deployment.deployed_at).to_f))
+      span class="text-[11px] text-gray-600" = t('.correlation_caveat')
+
+  / --- Representative traces ---
+
+  - if @traces.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.requests')
+      .column.gap-2
+        - @traces.each do |trace|
+          .row.items-baseline.justify-between.gap-4.text-xs
+            = link_to(trace.endpoint, request_path(trace, **carried_params), class: 'link yellow truncate')
+            .row.gap-4.shrink-0
+              span.text-gray-500 = observatory_count(trace.query_count) + ' ' + t('.lookups')
+              span.text-gray-500 = observatory_percentage(trace.cached_query_ratio, 0) + ' ' + t('.cached')
+              span.text-gray-300 = observatory_duration(trace.duration_ms)
+
+  - if @events.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.watchdog')
+      .column.gap-2
+        - @events.each do |event|
+          .row.items-baseline.justify-between.gap-4.text-xs
+            span.text-gray-400 = "#{ event.occurred_at.strftime('%H:%M:%S') } · #{ event.trigger }"
+            .row.gap-4.shrink-0
+              span.text-gray-300 = event.action_taken
+              - if event.disagreed?
+                span.text-amber-300 = "→ #{ event.recommended_action }"
+
+  - if @incident.open?
+    .cell-auto
+      = button_to(t('.resolve'), resolve_incident_path(@incident, **carried_params),
+                  method: :patch, class: 'btn btn-sm btn-yellow')

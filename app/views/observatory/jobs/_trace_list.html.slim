@@ -1,0 +1,17 @@
+.card.p-4.column.gap-3 class="ring-1 ring-white/5"
+  span.text-xs.uppercase.tracking-wider.text-gray-500 = title
+  - if traces.any?
+    .column.gap-2
+      - traces.each do |trace|
+        .row.items-baseline.justify-between.gap-3.text-xs
+          = link_to(trace.job_class, job_path(trace, **carried_params), class: 'link yellow truncate')
+          span.text-gray-300.shrink-0
+            - case measure
+            - when :duration
+              = observatory_duration(trace.duration_ms)
+            - when :queries
+              = observatory_count(trace.query_count)
+            - else
+              = observatory_duration(trace.queue_latency_ms)
+  - else
+    span.text-xs.text-gray-600 = t('observatory.jobs.trace_list.empty')

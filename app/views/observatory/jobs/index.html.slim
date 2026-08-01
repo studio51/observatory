@@ -1,0 +1,72 @@
+/ Sidekiq. Depth never appears without throughput and a drain estimate beside
+/ it, because depth alone cannot distinguish a queue that is working from one
+/ that has stopped.
+.column.gap-y-6
+  .cell-auto.row.items-end.justify-between.flex-wrap.gap-4
+    .column.gap-1
+      h1.text-xl.font-light.text-white = t('.title')
+      span.text-xs.text-gray-500 = t('.subtitle')
+    = render(partial: 'observatory/shared/period_picker')
+
+  - if @queues.any?
+    .cell-auto.card.overflow-x-auto class="ring-1 ring-white/5"
+      table.w-full.text-xs
+        thead
+          tr class="text-gray-500 border-b border-white/5"
+            th.text-left.font-normal.p-3 = t('.columns.queue')
+            th.text-right.font-normal.p-3 = t('.columns.depth')
+            th.text-right.font-normal.p-3 = t('.columns.throughput')
+            th.text-right.font-normal.p-3 = t('.columns.drain')
+            th.text-right.font-normal.p-3 = t('.columns.latency')
+            th.text-right.font-normal.p-3 = t('.columns.verdict')
+        tbody
+          - @queues.sort_by { |queue| -queue.depth.to_i }.each do |queue|
+            - draining = queue.drain_seconds.present? && queue.drain_seconds < Observatory.config.queue_drain_threshold
+            tr class="border-b border-white/5"
+              td.p-3.text-gray-200 = queue.subject
+              td.p-3.text-right.text-gray-300 = observatory_count(queue.depth)
+              td.p-3.text-right.text-gray-300 = "#{ queue.throughput.to_f.round(1) }/s"
+              td.p-3.text-right
+                span class="#{ draining ? 'text-gray-300' : 'text-amber-300' }"
+                  = observatory_seconds(queue.drain_seconds)
+              td.p-3.text-right.text-gray-500 = observatory_seconds(queue.metric('latency'))
+              td.p-3.text-right
+                span class="text-[10px] uppercase tracking-wider #{ draining ? 'text-emerald-400' : 'text-amber-400' }"
+                  = draining ? t('.draining') : t('.not_draining')
+  - else
+    .cell-auto.card.p-8.text-center class="ring-1 ring-white/5"
+      span.text-sm.text-gray-500 = t('.no_queues')
+
+  - if @by_class.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.by_class')
+      span class="text-[11px] text-gray-600" = t('.worker_seconds_explainer')
+      .overflow-x-auto
+        table.w-full.text-xs
+          thead
+            tr class="text-gray-500 border-b border-white/5"
+              th.text-left.font-normal.py-2 = t('.columns.job_class')
+              th.text-right.font-normal.py-2 = t('.columns.runs')
+              th.text-right.font-normal.py-2 = t('.columns.worker_seconds')
+              th.text-right.font-normal.py-2 = t('.columns.average')
+              th.text-right.font-normal.py-2 = t('.columns.queries')
+              th.text-right.font-normal.py-2 = t('.columns.failures')
+          tbody
+            - @by_class.each do |row|
+              tr class="border-b border-white/5"
+                td.py-2.text-gray-200.max-w-xs.truncate = row[:job_class]
+                td.py-2.text-right.text-gray-400 = observatory_count(row[:count])
+                td.py-2.text-right.text-gray-100 = row[:worker_seconds].round(1)
+                td.py-2.text-right.text-gray-400 = observatory_duration(row[:average_ms])
+                td.py-2.text-right.text-gray-400 = observatory_count(row[:query_count])
+                td.py-2.text-right
+                  span class="#{ row[:failures].positive? ? 'text-red-400' : 'text-gray-600' }"
+                    = row[:failures]
+
+  .grid.grid-cols-1.gap-4 class="lg:grid-cols-3"
+    = render(partial: 'observatory/jobs/trace_list',
+             locals: { title: t('.slowest'), traces: @slowest, measure: :duration })
+    = render(partial: 'observatory/jobs/trace_list',
+             locals: { title: t('.query_heavy'), traces: @query_heavy, measure: :queries })
+    = render(partial: 'observatory/jobs/trace_list',
+             locals: { title: t('.queue_starved'), traces: @starved, measure: :latency })

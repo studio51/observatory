@@ -1,0 +1,10 @@
+/ MySQL. Reads its own counters — connections in use against the configured
+/ maximum, running threads, lock waits — never a default from documentation.
+- if sample.nil?
+  = render('observatory/shared/panel', title: 'MySQL', headline: '—', state: :unknown, subtitle: t('observatory.dashboards.mysql.no_sample'))
+- else
+  - connections = sample.metric('connections').to_i
+  - maximum = sample.metric('max_connections').to_i
+  - ratio = maximum.positive? ? connections.to_f / maximum : nil
+  - rows = { t('observatory.dashboards.mysql.connections') => "#{ observatory_count(connections) } / #{ observatory_count(maximum) }", t('observatory.dashboards.mysql.peak') => observatory_count(sample.metric('peak_connections')), t('observatory.dashboards.mysql.running') => sample.metric('running_threads'), t('observatory.dashboards.mysql.lock_waits') => observatory_count(sample.metric('row_lock_waits')), t('observatory.dashboards.mysql.slow') => observatory_count(sample.metric('slow_queries')) }
+  = render('observatory/shared/panel', title: 'MySQL', headline: observatory_percentage(ratio, 2), state: observatory_state_for(ratio), subtitle: t('observatory.dashboards.mysql.connections_used'), ratio: ratio, rows: rows)

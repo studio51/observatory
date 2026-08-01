@@ -1,0 +1,55 @@
+/ Observatory ships its own layout.
+/
+/ It would be tempting to render inside the host's admin layout and inherit its
+/ navigation for free. That couples the engine to every route helper the host's
+/ layout happens to call — `searches_path`, and whatever is added next — and an
+/ isolated engine resolves helpers against its own routes, so those raise. More
+/ importantly it would make the engine unextractable: a gem cannot depend on a
+/ layout it does not ship.
+/
+/ So the chrome is self-contained. It pulls the host's compiled stylesheet, which
+/ is the one thing worth borrowing, and degrades to readable unstyled HTML
+/ without it.
+doctype html
+html lang='en'
+  head
+    title
+      = [ content_for(:title), 'Observatory' ].compact.join(' · ')
+    meta charset='UTF-8'
+    meta content='width=device-width, initial-scale=1' name='viewport'
+    meta name='robots' content='noindex, nofollow'
+    = csrf_meta_tags
+    = csp_meta_tag
+
+    - if respond_to?(:vite_stylesheet_tag)
+      = vite_stylesheet_tag('application.css')
+      = vite_client_tag
+      = vite_javascript_tag('application')
+
+  body.text-white.text-sm.font-light.font-sans.antialiased class="bg-[#0b0d12]"
+    header class="border-b border-white/5"
+      .container.mx-auto.px-6.py-4
+        .row.items-center.justify-between.flex-wrap.gap-4
+          .row.items-baseline.gap-3
+            = link_to('Observatory', root_path, class: 'text-base font-light text-white tracking-wide')
+            span class="text-[10px] uppercase tracking-widest text-gray-600"
+              = Rails.env
+
+          nav.row.items-center.gap-1
+            - { root_path => 'Overview', incidents_path => 'Incidents', requests_path => 'Requests',
+                routes_path => 'Routes', jobs_path => 'Sidekiq' }.each do |path, label|
+              - active = request.path == path || (path != root_path && request.path.start_with?(path))
+              = link_to(label, path, class: "px-3 py-1.5 text-xs rounded #{ active ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200' }")
+
+          - if respond_to?(:main_app)
+            = link_to('← Control Panel', main_app.admin_root_path, class: 'text-xs text-gray-600 hover:text-gray-400')
+
+    main.container.mx-auto.px-6.py-8
+      = yield
+
+    footer class="container mx-auto px-6 py-8 border-t border-white/5 mt-8"
+      .row.flex-wrap.items-center.justify-between.gap-3
+        span class="text-[11px] text-gray-600"
+          | Observatory v#{ Observatory::VERSION } · #{ Observatory::Release.current }
+        span class="text-[11px] text-gray-600"
+          | Allocation and GC figures are process-wide estimates. CRuby has no per-thread counter.

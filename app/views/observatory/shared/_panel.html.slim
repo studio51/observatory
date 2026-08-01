@@ -1,0 +1,24 @@
+/ A dependency panel: a name, a headline figure, a state colour and a few
+/ supporting numbers. Deliberately small and calm — these are the panels that
+/ stay green during the incident, and their job is to be quietly reassuring
+/ while the finding above them is not.
+.cell-auto.card.p-4.column.gap-3 class="ring-1 ring-white/5"
+  .row.items-center.justify-between
+    span.text-xs.uppercase.tracking-wider.text-gray-500
+      = title
+    span class="text-[10px] uppercase tracking-wider #{ observatory_state_class(state) }"
+      = state == :unknown ? 'no data' : state
+  .row.items-baseline.gap-2
+    span class="text-2xl font-light #{ observatory_state_class(state) }"
+      = headline
+    - if defined?(subtitle) && subtitle.present?
+      span.text-xs.text-gray-500
+        = subtitle
+  - if defined?(ratio) && !ratio.nil?
+    = observatory_bar(ratio, state: state)
+  - if defined?(rows) && rows.present?
+    .column class="gap-1 text-xs"
+      - rows.each do |label, value|
+        .row.justify-between.gap-4
+          span.text-gray-500 = label
+          span.text-gray-300 = value

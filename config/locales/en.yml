@@ -1,0 +1,285 @@
+# Observatory's own copy. Namespaced under `observatory.` so the engine can be
+# extracted without colliding with the host's locale tree, and structured for
+# per-view lazy lookup (`t('.title')` inside a view resolves against its path).
+en:
+  observatory:
+    shared:
+      evidence:
+        supporting: Evidence
+        contradicting: Contradicting evidence
+        no_contradicting: Nothing measured argues against this conclusion.
+
+    dashboards:
+      show:
+        title: Observatory
+        subtitle: What is consuming application capacity, why, and what proves it.
+        all_clear_label: All clear
+        all_clear: No hidden application constraint detected
+        all_clear_detail: "No rule has fired in the last %{period}. Infrastructure being healthy is not the same as nothing being wrong, so this panel reports the analysis, not the absence of alerts."
+        capacity: Puma request capacity
+        no_workers: no workers reporting
+        workers_reporting: "%{count} worker(s) reporting"
+        threads_busy: request threads busy
+        backlog: Backlog
+        backlog_unknown: not measurable
+        saturated_workers: Saturated workers
+        worker_memory: Worker memory
+        measured_by: Measured by
+        traffic: Traffic
+        requests_in_window: "%{count} requests"
+        errors: Errors
+        crawlers: Automated
+        latency: Latency
+        query_load: ActiveRecord lookups
+        lookups: lookups
+        cached: from query cache
+        thread_seconds: Thread-seconds
+        consumed: consumed
+        available: available
+        top_routes: Capacity by route
+        all_routes: All routes →
+        thread_seconds_explainer: Ranked by thread-seconds, not request count. Ten requests at twenty seconds cost ten times what a thousand at twenty milliseconds cost.
+        n_requests: "%{count} req"
+        long_running: Requests currently over the extreme threshold
+      hidden_problem:
+        label: The hidden problem
+        confidence: "%{level} confidence"
+        constrained: Constrained resource
+        contributor: Primary contributor
+        duration: Duration
+        investigate: Investigate →
+      mysql:
+        no_sample: not sampled yet
+        connections_used: connections in use
+        connections: Connections
+        peak: Historical peak
+        running: Running threads
+        lock_waits: Row-lock waits
+        slow: Slow queries
+      redis:
+        no_sample: not sampled yet
+        utilisation: command CPU over uptime
+        clients: Connected clients
+        blocked: Blocked clients
+        memory: Memory
+        hit_ratio: Keyspace hit ratio
+        slow_rate: Slow commands
+      sidekiq:
+        no_sample: not sampled yet
+        enqueued: jobs enqueued
+        deepest: Deepest queue
+        throughput: Completion rate
+        drain: Estimated drain
+        processes: Processes
+        busy: Busy workers
+      watchdog:
+        title: Last supervisor action
+        none: No watchdog action recorded.
+        when: When
+        trigger: Trigger
+        classification: Classification
+        threads: Threads busy
+        action_taken: Action taken
+        recommended: Observatory recommended
+        advisory_only: Advisory only — the supervisor's behaviour is unchanged.
+      release:
+        title: Running release
+        current: Release
+        branch: Branch
+        deployed: Deployed
+        schema: Schema version
+        no_history: No deployment history recorded yet.
+      diagnostics:
+        title: Observatory itself
+        healthy: healthy
+        degraded: degraded
+        buffered: Buffered
+        written: Written
+        dropped: Dropped
+        failures: Internal failures
+        dropped_explainer: Events were dropped, so the figures above are incomplete. Raise buffer_capacity or lower the sample rate.
+        writer: "writer %{state}"
+        sampler: "sampler %{state}"
+        persisting: "persisting: %{state}"
+
+    incidents:
+      index:
+        title: Incidents
+        subtitle: What is constrained, what is consuming it, and the evidence on both sides.
+        analyse: Run analysis now
+        open: Open
+        resolved: Recently resolved
+        none_open: No open incidents.
+      row:
+        constrained: Constrained
+      show:
+        back: All incidents
+        confidence: "%{level} confidence"
+        constrained: Constrained resource
+        contributor: Primary contributor
+        started: Started
+        duration: Duration
+        detections: "%{count} detection(s)"
+        failure_mode: Likely failure mode
+        timeline: Causal timeline
+        impact: Impact
+        recommended: Recommended next action
+        deployment: Deployment
+        deployed_before: "deployed %{duration} before the incident began"
+        correlation_caveat: This is a correlation in time. It is not evidence of cause on its own.
+        requests: Representative requests
+        lookups: lookups
+        cached: cached
+        watchdog: Supervisor actions
+        resolve: Mark resolved
+
+    requests:
+      index:
+        title: Requests
+        count: "showing %{shown} of %{total}"
+        empty: No requests matched. Sampling keeps everything remarkable and 1% of the rest, so an empty result usually means nothing remarkable happened.
+        filters:
+          all: All
+          slow: Slow
+          errors: Errors
+          query_heavy: Query-heavy
+          cached_explosions: Cached explosions
+          crawlers: Automated
+          health_checks: Health checks
+        columns:
+          started: Started
+          route: Route
+          status: Status
+          duration: Duration
+          queries: Lookups
+          cached: Cached
+          database: Database
+          allocations: Allocations
+          anomalies: Retained because
+      show:
+        back: All requests
+        trace_id: trace
+        request_id: request
+        release: release
+        part_of_incident: Part of an incident
+        view_incident: View incident →
+        breakdown: Where the time went
+        database: Database
+        views: Views
+        cache: Cache
+        external: External HTTP
+        unaccounted: Unaccounted
+        unaccounted_explainer: Unaccounted time is Ruby — building queries, allocating objects, collecting garbage. A large share here with a low database figure is the signature of repeated application-side lookups.
+        duration: Duration
+        thread_seconds: "%{value} thread-seconds"
+        lookups: ActiveRecord lookups
+        distinct_shapes: "%{count} distinct shapes"
+        executed: Executed
+        cached: From query cache
+        schema: Schema
+        rows_returned: "%{count} rows returned"
+        instantiated: Records materialised
+        pool_waiting: Threads waiting for a connection
+        memory: Allocations
+        allocations_estimated: estimated, process-wide
+        gc_time: Estimated GC
+        gc_runs: GC runs
+        concurrent: Peak concurrency
+        contamination_warning: "Up to %{count} requests ran concurrently in this process. CRuby has no per-thread allocation counter, so the allocation and GC figures above include their work too — treat them as an order of magnitude, not an attribution."
+        query_shapes: Query shapes
+        call_site: Call site
+        repetition_bound: This shape's cost is repetition, not slowness — each execution is fast and there are a great many of them.
+        slow_statement: This shape contains a genuinely slow execution.
+        concurrent_requests: Running at the same time in this process
+        concurrent_explainer: These held threads alongside this request, and contaminated its allocation and GC figures.
+
+    routes:
+      index:
+        title: Routes
+        subtitle: Ranked by the request capacity they consume.
+        empty: No route data in this window.
+        sort:
+          capacity: Capacity
+          traffic: Traffic
+          queries: Queries
+          allocations: Allocations
+          errors: Errors
+        columns:
+          route: Route
+          requests: Requests
+          thread_seconds: Thread-seconds
+          average: Average
+          queries: Lookups
+          cached: Cached
+          errors: Errors
+          crawlers: Automated
+      show:
+        back: All routes
+        no_data: No data for this route in the selected window.
+        traffic: Traffic
+        requests: requests
+        errors: Errors
+        crawlers: Automated
+        latency: Latency
+        max: Max
+        queries: Lookups
+        per_request: per request
+        cached: From query cache
+        worst: Worst request
+        capacity: Capacity
+        thread_seconds: thread-seconds consumed
+        allocations: Allocations
+        against_baseline: Against baseline
+        baseline_explainer: Baseline is this route's own behaviour over the preceding 24 hours, ending where this window begins — so an ongoing incident cannot move its own baseline.
+        average_duration: Average duration
+        queries_per_request: Lookups per request
+        cached_ratio: Query-cache share
+        over_time: Over time
+        query_shapes: Query shapes issued by this route
+        slowest_requests: Slowest requests
+        lookups: lookups
+
+    jobs:
+      index:
+        title: Sidekiq
+        subtitle: Queue depth is never shown without the throughput that decides whether it matters.
+        no_queues: No queue samples yet.
+        draining: draining
+        not_draining: not draining
+        by_class: By job class
+        worker_seconds_explainer: Ranked by worker-seconds consumed, which is what a job actually costs the fleet.
+        slowest: Slowest jobs
+        query_heavy: Query-heavy jobs
+        queue_starved: Waited longest in queue
+        columns:
+          queue: Queue
+          depth: Depth
+          throughput: Completion rate
+          drain: Estimated drain
+          latency: Oldest job
+          verdict: Verdict
+          job_class: Job class
+          runs: Runs
+          worker_seconds: Worker-seconds
+          average: Average
+          queries: Lookups
+          failures: Failures
+      trace_list:
+        empty: Nothing recorded.
+      show:
+        back: All jobs
+        queue: queue
+        retry: "retry %{count}"
+        result: result
+        runtime: Runtime
+        worker_seconds: "%{value} worker-seconds"
+        queue_latency: Queue latency
+        waited_before_starting: waited before starting
+        lookups: ActiveRecord lookups
+        cached_share: "%{value} from query cache"
+        database: Database time
+        external: External HTTP
+        calls: "%{count} call(s)"
+        hosts: Hosts
+        upstream_bound: Most of this job's runtime was spent waiting on an upstream service, not doing its own work.
+        query_shapes: Query shapes

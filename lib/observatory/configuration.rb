@@ -155,6 +155,7 @@ module Observatory
     attr_accessor :logger                      # where Observatory's own diagnostics go
     attr_accessor :error_report_interval       # minimum seconds between identical internal error reports
     attr_accessor :release_resolver            # callable returning the active release identifier
+    attr_accessor :parent_controller           # the host controller the dashboard inherits from, by name
     attr_accessor :deployment_marker_path      # file holding the deployed SHA, watched for changes
 
     # Build a configuration populated with the production-safe defaults.
@@ -241,6 +242,11 @@ module Observatory
       @logger                 = nil
       @error_report_interval  = 60.0
       @release_resolver       = nil
+      # Deliberately the bare Rails base. An unprotected monitoring dashboard
+      # exposes route templates, query shapes and traffic patterns, so getting a
+      # useful one should take an explicit decision by the host.
+      #
+      @parent_controller      = "ActionController::Base".freeze
       @deployment_marker_path = "tmp/pids/deploy.last-success".freeze
     end
 

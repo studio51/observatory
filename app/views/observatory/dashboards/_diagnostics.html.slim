@@ -1,0 +1,41 @@
+/ Observatory's own health.
+/
+/ A monitoring system that is quietly dropping events while still looking
+/ installed is its own outage, so the numbers that would reveal that are on the
+/ page rather than assumed. `dropped` should be zero; anything else means the
+/ figures above are incomplete, and that is worth knowing before acting on them.
+- writer = health[:writer] || {}
+- dropped = writer[:dropped].to_i
+- failures = (health[:failures] || {}).values.sum
+.cell-auto.card.p-4.column.gap-3 class="ring-1 ring-white/5"
+  .row.items-center.justify-between
+    span.text-xs.uppercase.tracking-wider.text-gray-500
+      = t('observatory.dashboards.diagnostics.title')
+    span class="text-[10px] uppercase tracking-wider #{ observatory_state_class(dropped.zero? && failures.zero? ? :ok : :warning) }"
+      = dropped.zero? && failures.zero? ? t('observatory.dashboards.diagnostics.healthy') : t('observatory.dashboards.diagnostics.degraded')
+
+  .grid.grid-cols-2.gap-4 class="md:grid-cols-4 text-xs"
+    .column.gap-1
+      span.text-gray-500 = t('observatory.dashboards.diagnostics.buffered')
+      span.text-gray-200 = "#{ observatory_count(writer[:size]) } / #{ observatory_count(writer[:capacity]) }"
+    .column.gap-1
+      span.text-gray-500 = t('observatory.dashboards.diagnostics.written')
+      span.text-gray-200 = observatory_count(writer[:written])
+    .column.gap-1
+      span.text-gray-500 = t('observatory.dashboards.diagnostics.dropped')
+      span class="#{ dropped.zero? ? 'text-gray-200' : 'text-amber-300' }"
+        = observatory_count(dropped)
+    .column.gap-1
+      span.text-gray-500 = t('observatory.dashboards.diagnostics.failures')
+      span class="#{ failures.zero? ? 'text-gray-200' : 'text-amber-300' }"
+        = observatory_count(failures)
+
+  - if dropped.positive?
+    span class="text-[11px] text-amber-400/80"
+      = t('observatory.dashboards.diagnostics.dropped_explainer')
+
+  .row.flex-wrap.gap-4 class="text-[11px] text-gray-600 pt-2 border-t border-white/5"
+    span = t('observatory.dashboards.diagnostics.writer', state: writer[:running] ? 'running' : 'stopped')
+    span = t('observatory.dashboards.diagnostics.sampler', state: health.dig(:sampler, :running) ? 'running' : 'stopped')
+    span = t('observatory.dashboards.diagnostics.persisting', state: health[:persisting] ? 'yes' : 'no')
+    span = "v#{ Observatory::VERSION }"

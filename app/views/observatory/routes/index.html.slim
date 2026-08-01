@@ -1,0 +1,56 @@
+/ Routes ranked by the capacity they consume, not by how often they are called.
+/ That ordering is the point: ten requests at twenty seconds cost 200
+/ thread-seconds; a thousand at twenty milliseconds cost 20. Sorting by request
+/ count says the opposite of the truth.
+.column.gap-y-6
+  .cell-auto.row.items-end.justify-between.flex-wrap.gap-4
+    .column.gap-1
+      h1.text-xl.font-light.text-white = t('.title')
+      span.text-xs.text-gray-500 = t('.subtitle')
+    = render(partial: 'observatory/shared/period_picker')
+
+  .cell-auto.row.flex-wrap.gap-2
+    - { thread_seconds: t('.sort.capacity'), count: t('.sort.traffic'),
+        query_count_sum: t('.sort.queries'), allocation_sum: t('.sort.allocations'),
+        error_count: t('.sort.errors') }.each do |column, label|
+      = link_to(label, routes_path(carried_params.merge(sort: column)),
+                class: "px-3 py-1 text-xs rounded ring-1 #{ sort_column == column ? 'bg-white/10 text-white ring-white/20' : 'text-gray-400 ring-white/5 hover:text-gray-200' }")
+
+  .cell-auto.card.overflow-x-auto class="ring-1 ring-white/5"
+    table.w-full.text-xs
+      thead
+        tr class="text-gray-500 border-b border-white/5"
+          th.text-left.font-normal.p-3 = t('.columns.route')
+          th.text-right.font-normal.p-3 = t('.columns.requests')
+          th.text-right.font-normal.p-3 = t('.columns.thread_seconds')
+          th.text-right.font-normal.p-3 = t('.columns.average')
+          th.text-right.font-normal.p-3 = t('.columns.queries')
+          th.text-right.font-normal.p-3 = t('.columns.cached')
+          th.text-right.font-normal.p-3 = t('.columns.errors')
+          th.text-right.font-normal.p-3 = t('.columns.crawlers')
+      tbody
+        - @routes.each do |endpoint, measurements|
+          - baseline = @baselines[endpoint]
+          tr class="border-b border-white/5 hover:bg-white/[0.02]"
+            td.p-3.max-w-md.truncate
+              = link_to(endpoint, route_path(endpoint: endpoint, **carried_params), class: 'link yellow')
+            td.p-3.text-right.text-gray-300 = observatory_count(measurements[:count])
+            td.p-3.text-right.text-gray-100 = measurements[:thread_seconds].round(1)
+            td.p-3.text-right
+              span class="#{ measurements[:average_duration_ms] > 1_000 ? 'text-amber-300' : 'text-gray-400' }"
+                = observatory_duration(measurements[:average_duration_ms])
+              - if baseline && baseline[:average_duration_ms].to_f > 0
+                span class="text-[10px] text-gray-600 ml-1"
+                  = "(#{ (measurements[:average_duration_ms] / baseline[:average_duration_ms]).round(1) }×)"
+            td.p-3.text-right.text-gray-400 = observatory_count(measurements[:query_count_sum])
+            td.p-3.text-right
+              span class="#{ measurements[:cached_query_ratio] > 0.8 ? 'text-amber-300' : 'text-gray-500' }"
+                = observatory_percentage(measurements[:cached_query_ratio], 0)
+            td.p-3.text-right
+              span class="#{ measurements[:error_count].to_i.positive? ? 'text-red-400' : 'text-gray-600' }"
+                = measurements[:error_count]
+            td.p-3.text-right.text-gray-500 = observatory_count(measurements[:crawler_count])
+
+  - if @routes.empty?
+    .cell-auto.card.p-8.text-center class="ring-1 ring-white/5"
+      span.text-sm.text-gray-500 = t('.empty')

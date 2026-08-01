@@ -1,0 +1,47 @@
+.column.gap-y-6
+  .cell-auto.column.gap-2
+    = link_to("← #{ t('.back') }", jobs_path(carried_params), class: 'link yellow text-xs')
+    h1.text-xl.font-light.text-white.break-all = @trace.job_class
+    .row.flex-wrap.gap-x-6.gap-y-1 class="text-xs text-gray-500"
+      span = @trace.started_at.strftime('%d %b %Y %H:%M:%S')
+      span = "#{ t('.queue') }: #{ @trace.queue }"
+      span = "jid #{ @trace.jid }"
+      - if @trace.retry_count.positive?
+        span.text-amber-400 = t('.retry', count: @trace.retry_count)
+      span = "#{ t('.result') }: #{ @trace.result }"
+
+  .grid.grid-cols-2.gap-4 class="md:grid-cols-4"
+    = render('observatory/shared/panel', title: t('.runtime'),
+             headline: observatory_duration(@trace.duration_ms), state: :ok,
+             subtitle: t('.worker_seconds', value: @trace.worker_seconds.round(2)))
+    = render('observatory/shared/panel', title: t('.queue_latency'),
+             headline: observatory_duration(@trace.queue_latency_ms),
+             state: @trace.queue_latency_ms.to_f > 60_000 ? :warning : :ok,
+             subtitle: t('.waited_before_starting'))
+    = render('observatory/shared/panel', title: t('.lookups'),
+             headline: observatory_count(@trace.query_count),
+             state: @trace.query_count > 1_000 ? :warning : :ok,
+             subtitle: t('.cached_share', value: observatory_percentage(@trace.cached_query_ratio)),
+             rows: { t('.database') => observatory_duration(@trace.db_duration_ms) })
+    = render('observatory/shared/panel', title: t('.external'),
+             headline: observatory_duration(@trace.external_duration_ms), state: :ok,
+             subtitle: t('.calls', count: @trace.external_call_count),
+             rows: { t('.hosts') => Array(@trace.external_hosts).join(', ').presence || '—' })
+
+  - if @trace.upstream_bound?
+    .cell-auto.p-3.rounded class="bg-amber-500/[0.06] ring-1 ring-amber-500/20"
+      span.text-xs.text-amber-300 = t('.upstream_bound')
+
+  - if @groups.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.query_shapes')
+      .column.gap-2
+        - @groups.each do |group|
+          .column.gap-1.p-3.rounded class="bg-white/[0.02]"
+            .row.items-baseline.justify-between.gap-4
+              code.text-xs.text-gray-300.break-all.flex-1 = group.sample_sql
+              .row.gap-4.shrink-0.text-xs
+                span.text-gray-200 = "#{ observatory_count(group.count) }×"
+                span.text-gray-500 = observatory_percentage(group.cached_ratio, 0)
+            - if group.call_site.present?
+              code class="text-[11px] text-amber-300/90 break-all" = group.call_site

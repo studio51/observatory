@@ -1,0 +1,8 @@
+/ Redis. Utilisation is calculated from command CPU over uptime — the slowlog
+/ frequency is shown beside it, and never on its own, because a capped ring of
+/ the worst commands ever seen says nothing about current load.
+- if sample.nil?
+  = render('observatory/shared/panel', title: 'Redis', headline: '—', state: :unknown, subtitle: t('observatory.dashboards.redis.no_sample'))
+- else
+  - rows = { t('observatory.dashboards.redis.clients') => sample.metric('connected_clients'), t('observatory.dashboards.redis.blocked') => sample.metric('blocked_clients'), t('observatory.dashboards.redis.memory') => observatory_bytes(sample.metric('used_memory_bytes')), t('observatory.dashboards.redis.hit_ratio') => observatory_percentage(sample.metric('keyspace_hit_ratio')), t('observatory.dashboards.redis.slow_rate') => "#{ sample.metric('slow_commands_per_hour') }/hr" }
+  = render('observatory/shared/panel', title: 'Redis', headline: observatory_percentage(sample.utilisation), state: observatory_state_for(sample.utilisation, warning: 0.7, critical: 0.9), subtitle: t('observatory.dashboards.redis.utilisation'), ratio: sample.utilisation, rows: rows)

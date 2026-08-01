@@ -1,0 +1,33 @@
+/ Evidence, both sides. The contradicting column is given the same weight as the
+/ supporting one on purpose: during the incident this system exists to explain,
+/ the healthy-looking measurements are the most useful thing on the page,
+/ because they are what stop someone restarting the database.
+.grid.grid-cols-1.gap-6 class="lg:grid-cols-2"
+  .column.gap-3
+    span class="text-xs uppercase tracking-wider text-gray-500"
+      = t('.supporting', default: 'Evidence')
+    .column.gap-2
+      - supporting.each do |item|
+        .row.justify-between.gap-4.text-sm class="border-l-2 border-red-500/40 pl-3 py-1"
+          span.text-gray-400 = item.label
+          .row.items-baseline.gap-2
+            span.text-gray-100 = item.value
+            - if item.baseline.present?
+              span class="text-[11px] text-gray-600"
+                | (was #{ item.baseline })
+  .column.gap-3
+    span class="text-xs uppercase tracking-wider text-gray-500"
+      = t('.contradicting', default: 'Contradicting evidence')
+    - if contradicting.any?
+      .column.gap-2
+        - contradicting.each do |item|
+          .row.justify-between.gap-4.text-sm class="border-l-2 border-emerald-500/40 pl-3 py-1"
+            span.text-gray-400 = item.label
+            .row.items-baseline.gap-2
+              span.text-gray-100 = item.value
+              - if item.baseline.present?
+                span class="text-[11px] text-gray-600"
+                  | (was #{ item.baseline })
+    - else
+      span.text-sm.text-gray-600
+        = t('.no_contradicting', default: 'Nothing measured argues against this conclusion.')

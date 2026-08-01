@@ -1,0 +1,37 @@
+/ The supervisor's last action, next to what Observatory would have done.
+/ A disagreement is the finding, so it is rendered as one rather than buried.
+.cell-auto.card.p-4.column.gap-3 class="ring-1 ring-white/5"
+  span.text-xs.uppercase.tracking-wider.text-gray-500
+    = t('observatory.dashboards.watchdog.title')
+
+  - if event.nil?
+    span.text-sm.text-gray-600 = t('observatory.dashboards.watchdog.none')
+  - else
+    .column class="gap-2 text-xs"
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.watchdog.when')
+        span.text-gray-300 = event.occurred_at.strftime('%d %b %H:%M:%S')
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.watchdog.trigger')
+        span.text-gray-300 = event.trigger
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.watchdog.classification')
+        span class="#{ event.saturated_not_dead? ? 'text-amber-300' : 'text-gray-300' }"
+          = event.classification.tr('_', ' ')
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.watchdog.threads')
+        span.text-gray-300 = "#{ event.busy_threads } / #{ event.max_threads }"
+
+    - if event.disagreed?
+      .column.gap-1.p-3.rounded class="bg-amber-500/[0.06] ring-1 ring-amber-500/20"
+        .row.justify-between.gap-4.text-xs
+          span.text-gray-500 = t('observatory.dashboards.watchdog.action_taken')
+          span.text-gray-200 = event.action_taken
+        .row.justify-between.gap-4.text-xs
+          span.text-gray-500 = t('observatory.dashboards.watchdog.recommended')
+          span.text-amber-300 = event.recommended_action
+        - if event.advisory_reason.present?
+          span class="text-[11px] text-gray-500 pt-1"
+            = event.advisory_reason
+        span class="text-[10px] uppercase tracking-wider text-gray-600 pt-1"
+          = t('observatory.dashboards.watchdog.advisory_only')

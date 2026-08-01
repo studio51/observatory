@@ -1,0 +1,49 @@
+/ The panel this whole product exists to render.
+/
+/ Full width, amber or red, sitting above every green infrastructure panel on
+/ the page. The contrast is the message: nothing below is broken, and the
+/ application is still out of capacity.
+.cell-auto.card.p-6.column.gap-5 class="ring-1 ring-red-500/30 bg-red-500/[0.04]"
+
+  .row.items-start.justify-between.flex-wrap.gap-4
+    .column.gap-2
+      span class="text-[11px] uppercase tracking-[0.2em] text-red-400"
+        = t('observatory.dashboards.hidden_problem.label')
+      h2.text-2xl.font-light.text-white
+        = incident.title
+    .row.items-center.gap-2
+      span class="text-[10px] uppercase tracking-wider px-2 py-1 rounded ring-1 #{ observatory_severity_class(incident.severity) }"
+        = incident.severity
+      span class="text-[10px] uppercase tracking-wider text-gray-500"
+        = t('observatory.dashboards.hidden_problem.confidence', level: incident.confidence)
+
+  .grid.grid-cols-1.gap-4 class="md:grid-cols-3"
+    .column.gap-1
+      span class="text-[11px] uppercase tracking-wider text-gray-500"
+        = t('observatory.dashboards.hidden_problem.constrained')
+      span.text-lg.font-light.text-red-300
+        = incident.constrained_resource
+    .column.gap-1
+      span class="text-[11px] uppercase tracking-wider text-gray-500"
+        = t('observatory.dashboards.hidden_problem.contributor')
+      span.text-lg.font-light.text-gray-100.truncate
+        = incident.primary_contributor || '—'
+    .column.gap-1
+      span class="text-[11px] uppercase tracking-wider text-gray-500"
+        = t('observatory.dashboards.hidden_problem.duration')
+      span.text-lg.font-light.text-gray-100
+        = observatory_seconds(incident.duration_seconds)
+
+  - if incident.failure_mode.present?
+    p.text-sm.text-gray-300.leading-relaxed
+      = incident.failure_mode
+
+  = render('observatory/shared/evidence', supporting: incident.supporting_evidence,
+           contradicting: incident.contradicting_evidence)
+
+  .row.items-center.justify-between.flex-wrap.gap-3.pt-2 class="border-t border-white/5"
+    - if incident.impact.present?
+      span.text-xs.text-gray-500.max-w-3xl
+        = incident.impact
+    = link_to(t('observatory.dashboards.hidden_problem.investigate'),
+              incident_path(incident, **carried_params), class: 'btn btn-sm btn-yellow shrink-0')

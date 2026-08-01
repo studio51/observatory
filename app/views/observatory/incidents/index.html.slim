@@ -1,0 +1,23 @@
+.column.gap-y-6
+  .cell-auto.row.items-end.justify-between.flex-wrap.gap-4
+    .column.gap-1
+      h1.text-xl.font-light.text-white = t('.title')
+      span.text-xs.text-gray-500 = t('.subtitle')
+    .row.items-center.gap-3
+      = render(partial: 'observatory/shared/period_picker')
+      = button_to(t('.analyse'), analyse_incidents_path(carried_params), class: 'btn btn-sm btn-yellow')
+
+  .cell-auto.column.gap-3
+    span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.open')
+    - if @open.any?
+      - @open.each do |incident|
+        = render(partial: 'observatory/incidents/row', locals: { incident: incident })
+    - else
+      .card.p-8.text-center class="ring-1 ring-emerald-500/20 bg-emerald-500/[0.03]"
+        span.text-sm.text-gray-300 = t('.none_open')
+
+  - if @resolved.any?
+    .cell-auto.column.gap-3
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.resolved')
+      - @resolved.each do |incident|
+        = render(partial: 'observatory/incidents/row', locals: { incident: incident })

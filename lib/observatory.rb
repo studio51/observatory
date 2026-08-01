@@ -134,6 +134,18 @@ module Observatory
       config.logger ||= default_logger
     end
 
+    # The controller class the dashboard inherits from.
+    #
+    # Resolved lazily and never cached, because in development the host's
+    # controller is reloadable and holding a reference to a stale class is how an
+    # engine ends up serving a page from the previous edit.
+    #
+    # @return [Class]
+    #
+    def parent_controller
+      config.parent_controller.to_s.constantize
+    end
+
     # The host application's root, used to render call sites relatively.
     #
     # @return [String, nil]

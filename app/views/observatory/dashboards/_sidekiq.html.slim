@@ -1,0 +1,10 @@
+/ Sidekiq. Depth is never shown without throughput and a drain estimate beside
+/ it: half a million jobs draining at 56/second is fine, five hundred that are
+/ not draining is not, and depth alone cannot tell them apart.
+- deepest = queues.max_by { |queue| queue.depth.to_i }
+- if deepest.nil?
+  = render('observatory/shared/panel', title: 'Sidekiq', headline: '—', state: :unknown, subtitle: t('observatory.dashboards.sidekiq.no_sample'))
+- else
+  - draining = deepest.drain_seconds.present? && deepest.drain_seconds < Observatory.config.queue_drain_threshold
+  - rows = { t('observatory.dashboards.sidekiq.deepest') => "#{ deepest.subject } (#{ observatory_count(deepest.depth) })", t('observatory.dashboards.sidekiq.throughput') => "#{ deepest.throughput.to_f.round(1) }/s", t('observatory.dashboards.sidekiq.drain') => observatory_seconds(deepest.drain_seconds), t('observatory.dashboards.sidekiq.processes') => processes.size, t('observatory.dashboards.sidekiq.busy') => processes.sum { |process| process.busy_threads.to_i } }
+  = render('observatory/shared/panel', title: 'Sidekiq', headline: observatory_count(queues.sum { |queue| queue.depth.to_i }), state: draining ? :ok : :warning, subtitle: t('observatory.dashboards.sidekiq.enqueued'), rows: rows)

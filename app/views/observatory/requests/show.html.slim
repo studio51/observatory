@@ -1,0 +1,124 @@
+/ One request, in full. The order is the diagnosis: where the time went first,
+/ then which queries caused it, then where in the application they came from.
+.column.gap-y-6
+
+  .cell-auto.column.gap-2
+    = link_to("← #{ t('.back') }", requests_path(carried_params), class: 'link yellow text-xs')
+    h1.text-xl.font-light.text-white.break-all = @trace.endpoint
+    .row.flex-wrap.gap-x-6.gap-y-1 class="text-xs text-gray-500"
+      span = @trace.started_at.strftime('%d %b %Y %H:%M:%S.%L')
+      span = "#{ @trace.http_method } → #{ @trace.status }"
+      span = "#{ t('.trace_id') }: #{ @trace.trace_id }"
+      - if @trace.request_id.present?
+        span = "#{ t('.request_id') }: #{ @trace.request_id }"
+      span = "#{ t('.release') }: #{ @trace.release }"
+      span = "pid #{ @trace.process_id }"
+
+  - if @incident
+    .cell-auto.card.p-4.row.items-center.justify-between.gap-4 class="ring-1 ring-red-500/30 bg-red-500/[0.04]"
+      .column.gap-1
+        span class="text-[11px] uppercase tracking-wider text-red-400" = t('.part_of_incident')
+        span.text-sm.text-gray-200 = @incident.title
+      = link_to(t('.view_incident'), incident_path(@incident, **carried_params), class: 'btn btn-sm btn-yellow')
+
+  / --- Where the time went ---
+
+  .cell-auto.card.p-5.column.gap-4 class="ring-1 ring-white/5"
+    span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.breakdown')
+
+    - total = @trace.duration_ms.to_f
+    - segments = [[t('.database'), @trace.db_duration_ms, 'bg-sky-500'],
+                  [t('.views'), @trace.view_duration_ms, 'bg-violet-500'],
+                  [t('.cache'), @trace.cache_duration_ms, 'bg-teal-500'],
+                  [t('.external'), @trace.external_duration_ms, 'bg-orange-500'],
+                  [t('.unaccounted'), @trace.unaccounted_ms, 'bg-amber-500']]
+
+    .row.w-full.h-3.rounded-full.overflow-hidden class="bg-white/5"
+      - segments.each do |label, value, colour|
+        - share = total.positive? ? (value.to_f / total) * 100 : 0
+        - next if share <= 0
+        .h-full class=colour style="width: #{ share.round(2) }%" title="#{ label }: #{ observatory_duration(value) }"
+
+    .grid.grid-cols-2.gap-3 class="md:grid-cols-5 text-xs"
+      - segments.each do |label, value, colour|
+        .column.gap-1
+          .row.items-center.gap-2
+            span.w-2.h-2.rounded-full class=colour
+            span.text-gray-500 = label
+          span.text-gray-200 = observatory_duration(value)
+
+    span class="text-[11px] text-gray-600"
+      = t('.unaccounted_explainer')
+
+  / --- Headline numbers ---
+
+  .grid.grid-cols-2.gap-4 class="md:grid-cols-4"
+    = render('observatory/shared/panel', title: t('.duration'),
+             headline: observatory_duration(@trace.duration_ms),
+             state: @trace.duration_ms > 10_000 ? :critical : @trace.duration_ms > 1_000 ? :warning : :ok,
+             subtitle: t('.thread_seconds', value: @trace.thread_seconds.round(2)))
+
+    = render('observatory/shared/panel', title: t('.lookups'),
+             headline: observatory_count(@trace.query_count),
+             state: @trace.query_count > 10_000 ? :critical : @trace.query_count > 1_000 ? :warning : :ok,
+             subtitle: t('.distinct_shapes', count: @trace.distinct_query_shapes),
+             rows: { t('.executed') => observatory_count(@trace.executed_query_count),
+                     t('.cached') => "#{ observatory_count(@trace.cached_query_count) } (#{ observatory_percentage(@trace.cached_query_ratio) })",
+                     t('.schema') => observatory_count(@trace.schema_query_count) })
+
+    = render('observatory/shared/panel', title: t('.database'),
+             headline: observatory_duration(@trace.db_duration_ms), state: :ok,
+             subtitle: t('.rows_returned', count: observatory_count(@trace.row_count)),
+             rows: { t('.instantiated') => observatory_count(@trace.instantiation_count),
+                     t('.pool_waiting') => @trace.pool_waiting.nil? ? '—' : @trace.pool_waiting })
+
+    = render('observatory/shared/panel', title: t('.memory'),
+             headline: observatory_count(@trace.allocation_delta),
+             state: @trace.allocation_delta > 1_000_000 ? :warning : :ok,
+             subtitle: t('.allocations_estimated'),
+             rows: { t('.gc_time') => observatory_duration(@trace.estimated_gc_time_ms),
+                     t('.gc_runs') => @trace.gc_runs,
+                     t('.concurrent') => @trace.peak_concurrency })
+
+  - if @trace.concurrent?
+    .cell-auto.p-3.rounded class="bg-white/[0.02] ring-1 ring-white/5"
+      span class="text-[11px] text-gray-500"
+        = t('.contamination_warning', count: @trace.peak_concurrency)
+
+  / --- The query shapes ---
+
+  - if @groups.any?
+    .cell-auto.card.p-5.column.gap-4 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.query_shapes')
+      .column.gap-3
+        - @groups.each do |group|
+          .column.gap-2.p-3.rounded class="bg-white/[0.02]"
+            .row.items-baseline.justify-between.flex-wrap.gap-3
+              code.text-xs.text-gray-300.break-all.flex-1 = group.sample_sql
+              .row.items-baseline.gap-4.shrink-0.text-xs
+                span class="#{ group.count > 1_000 ? 'text-amber-300' : 'text-gray-300' }"
+                  = "#{ observatory_count(group.count) }×"
+                span.text-gray-500 = "#{ observatory_percentage(group.cached_ratio, 0) } #{ t('.cached') }"
+                span.text-gray-500 = observatory_duration(group.duration_ms)
+            - if group.call_site.present?
+              .row.items-center.gap-2
+                span class="text-[10px] uppercase tracking-wider text-gray-600" = t('.call_site')
+                code class="text-[11px] text-amber-300/90 break-all" = group.call_site
+            - if group.repetition_bound?
+              span class="text-[11px] text-gray-500" = t('.repetition_bound')
+            - elsif group.slow_statement?
+              span class="text-[11px] text-gray-500" = t('.slow_statement')
+
+  / --- What else was running ---
+
+  - if @concurrent.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.concurrent_requests')
+      span class="text-[11px] text-gray-600" = t('.concurrent_explainer')
+      .column.gap-2
+        - @concurrent.each do |other|
+          .row.items-baseline.justify-between.gap-4.text-xs
+            = link_to(other.endpoint, request_path(other, **carried_params), class: 'link yellow truncate')
+            .row.gap-4.shrink-0
+              span.text-gray-500 = observatory_count(other.query_count) + ' ' + t('.lookups')
+              span.text-gray-300 = observatory_duration(other.duration_ms)

@@ -1,0 +1,29 @@
+/ The running release. Everything on this dashboard is stamped with it, which is
+/ what makes "p95 went from 180ms to 2.4s" answerable with "…starting with this
+/ deploy".
+.cell-auto.card.p-4.column.gap-3 class="ring-1 ring-white/5"
+  span.text-xs.uppercase.tracking-wider.text-gray-500
+    = t('observatory.dashboards.release.title')
+
+  - if deployment.nil?
+    .column class="gap-2 text-xs"
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.release.current')
+        span.text-gray-300 = Observatory::Release.current
+      span.text-gray-600 = t('observatory.dashboards.release.no_history')
+  - else
+    .column class="gap-2 text-xs"
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.release.current')
+        span.text-gray-300.font-mono = deployment.release
+      - if deployment.branch.present?
+        .row.justify-between.gap-4
+          span.text-gray-500 = t('observatory.dashboards.release.branch')
+          span.text-gray-300 = deployment.branch
+      .row.justify-between.gap-4
+        span.text-gray-500 = t('observatory.dashboards.release.deployed')
+        span.text-gray-300 = deployment.deployed_at.strftime('%d %b %H:%M')
+      - if deployment.schema_version.present?
+        .row.justify-between.gap-4
+          span.text-gray-500 = t('observatory.dashboards.release.schema')
+          span.text-gray-300.font-mono = deployment.schema_version

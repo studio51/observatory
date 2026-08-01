@@ -1,0 +1,67 @@
+/ The request explorer. Filters are links inside a Turbo Frame, which is the
+/ house convention for filterable UI — no Stimulus needed for something HTML
+/ already does.
+.column.gap-y-6
+  .cell-auto.row.items-end.justify-between.flex-wrap.gap-4
+    .column.gap-1
+      h1.text-xl.font-light.text-white = t('.title')
+      span.text-xs.text-gray-500
+        = t('.count', shown: @traces.size, total: observatory_count(@total))
+    = render(partial: 'observatory/shared/period_picker')
+
+  = turbo_frame_tag(:observatory_requests) do
+    .column.gap-4
+
+      .cell-auto.row.flex-wrap.gap-2
+        - { nil => t('.filters.all'), 'slow' => t('.filters.slow'),
+            'errors' => t('.filters.errors'), 'query_heavy' => t('.filters.query_heavy'),
+            'cached_explosions' => t('.filters.cached_explosions'),
+            'crawlers' => t('.filters.crawlers'),
+            'health_checks' => t('.filters.health_checks') }.each do |value, label|
+          = link_to(label, requests_path(filters.merge(only: value).compact_blank),
+                    class: "px-3 py-1 text-xs rounded ring-1 #{ filters[:only] == value ? 'bg-white/10 text-white ring-white/20' : 'text-gray-400 ring-white/5 hover:text-gray-200' }")
+
+      .cell-auto.card.overflow-x-auto class="ring-1 ring-white/5"
+        table.w-full.text-xs
+          thead
+            tr class="text-gray-500 border-b border-white/5"
+              th.text-left.font-normal.p-3 = t('.columns.started')
+              th.text-left.font-normal.p-3 = t('.columns.route')
+              th.text-right.font-normal.p-3 = t('.columns.status')
+              th.text-right.font-normal.p-3 = t('.columns.duration')
+              th.text-right.font-normal.p-3 = t('.columns.queries')
+              th.text-right.font-normal.p-3 = t('.columns.cached')
+              th.text-right.font-normal.p-3 = t('.columns.database')
+              th.text-right.font-normal.p-3 = t('.columns.allocations')
+              th.text-left.font-normal.p-3 = t('.columns.anomalies')
+          tbody
+            - @traces.each do |trace|
+              tr class="border-b border-white/5 hover:bg-white/[0.02]"
+                td.p-3.text-gray-500.whitespace-nowrap
+                  = link_to(trace.started_at.strftime('%H:%M:%S'), request_path(trace, **carried_params), class: 'link yellow')
+                td.p-3.text-gray-200.max-w-xs.truncate title=trace.endpoint
+                  = trace.endpoint
+                td.p-3.text-right
+                  span class="#{ trace.status.to_i >= 500 ? 'text-red-400' : trace.status.to_i >= 400 ? 'text-amber-400' : 'text-gray-400' }"
+                    = trace.status
+                td.p-3.text-right.whitespace-nowrap
+                  span class="#{ trace.duration_ms > 1_000 ? 'text-amber-300' : 'text-gray-300' }"
+                    = observatory_duration(trace.duration_ms)
+                td.p-3.text-right.text-gray-300
+                  = observatory_count(trace.query_count)
+                td.p-3.text-right
+                  span class="#{ trace.cached_query_ratio > 0.8 && trace.query_count > 1_000 ? 'text-amber-300' : 'text-gray-500' }"
+                    = observatory_percentage(trace.cached_query_ratio, 0)
+                td.p-3.text-right.text-gray-500
+                  = observatory_duration(trace.db_duration_ms)
+                td.p-3.text-right.text-gray-500
+                  = observatory_count(trace.allocation_delta)
+                td.p-3
+                  .row.flex-wrap.gap-1
+                    - Array(trace.retained_because).reject { |reason| reason == 'sampled' }.each do |reason|
+                      span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400"
+                        = reason.tr('_', ' ')
+
+      - if @traces.empty?
+        .cell-auto.card.p-8.text-center class="ring-1 ring-white/5"
+          span.text-sm.text-gray-500 = t('.empty')

@@ -1,0 +1,147 @@
+/ The overview.
+/
+/ Layout is the argument. The dependency panels sit BELOW the finding, small and
+/ green, because "MySQL is fine, Redis is fine, and the application is out of
+/ capacity" is the sentence this page exists to be able to say. Putting the
+/ infrastructure first would reproduce exactly the dashboard that misses this.
+
+.column.gap-y-8
+
+  .cell-auto
+    .row.items-end.justify-between.flex-wrap.gap-4
+      .column.gap-1
+        h1.text-xl.font-light.text-white = t('.title')
+        span.text-xs.text-gray-500 = t('.subtitle')
+
+      = render(partial: 'observatory/shared/period_picker')
+
+  / --- The finding, or its absence ---
+
+  - if @headline
+    = render(partial: 'observatory/dashboards/hidden_problem', locals: { incident: @headline })
+  - else
+    .cell-auto.card.p-6.column.gap-2 class="ring-1 ring-emerald-500/20 bg-emerald-500/[0.03]"
+      span class="text-xs uppercase tracking-wider text-emerald-400"
+        = t('.all_clear_label')
+      span.text-lg.font-light.text-gray-200
+        = t('.all_clear')
+      span.text-xs.text-gray-500
+        = t('.all_clear_detail', period: period)
+
+  / --- Capacity: the finite resource ---
+
+  .cell-auto.card.p-5.column.gap-4 class="ring-1 ring-white/5"
+    .row.items-center.justify-between
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.capacity')
+      - if @capacity[:workers_reporting].to_i.zero?
+        span class="text-[10px] uppercase tracking-wider text-red-400" = t('.no_workers')
+      - else
+        span class="text-[10px] text-gray-600"
+          = t('.workers_reporting', count: @capacity[:workers_reporting])
+
+    - busy = @capacity[:busy_threads].to_i
+    - maximum = @capacity[:max_threads].to_i
+    - utilisation = maximum.positive? ? busy.to_f / maximum : nil
+    - state = observatory_state_for(utilisation, warning: 0.7, critical: 0.99)
+
+    .row.items-baseline.gap-3
+      span class="text-3xl font-light #{ observatory_state_class(state) }"
+        = "#{ busy } / #{ maximum }"
+      span.text-sm.text-gray-500 = t('.threads_busy')
+
+    = observatory_bar(utilisation, state: state)
+
+    .grid.grid-cols-2.gap-4 class="md:grid-cols-4 text-xs"
+      .column.gap-1
+        span.text-gray-500 = t('.backlog')
+        / nil means the capacity adapter could not read it. Rendering that as 0
+        / would invert the saturation verdict, so it says unknown instead.
+        span.text-gray-200
+          = @capacity[:backlog].nil? ? t('.backlog_unknown') : observatory_count(@capacity[:backlog])
+      .column.gap-1
+        span.text-gray-500 = t('.saturated_workers')
+        span.text-gray-200 = @capacity[:saturated_workers]
+      .column.gap-1
+        span.text-gray-500 = t('.worker_memory')
+        span.text-gray-200 = observatory_bytes(@capacity[:rss_bytes])
+      .column.gap-1
+        span.text-gray-500 = t('.measured_by')
+        span.text-gray-200 = @capacity[:sources].presence&.join(', ') || '—'
+
+  / --- Traffic and latency ---
+
+  .grid.grid-cols-1.gap-4 class="md:grid-cols-2 xl:grid-cols-4"
+    = render('observatory/shared/panel', title: t('.traffic'),
+             headline: "#{ @traffic[:per_second] }/s", state: :ok,
+             subtitle: t('.requests_in_window', count: observatory_count(@traffic[:requests])),
+             rows: { t('.errors') => "#{ observatory_count(@traffic[:errors]) } (#{ observatory_percentage(@traffic[:error_rate], 2) })",
+                     t('.crawlers') => observatory_count(@traffic[:crawlers]) })
+
+    = render('observatory/shared/panel', title: t('.latency'),
+             headline: observatory_duration(@traffic[:p95]), state: :ok, subtitle: 'p95',
+             rows: { 'p50' => observatory_duration(@traffic[:p50]),
+                     'p99' => observatory_duration(@traffic[:p99]) })
+
+    = render('observatory/shared/panel', title: t('.query_load'),
+             headline: observatory_count(@traffic[:queries]), state: :ok,
+             subtitle: t('.lookups'),
+             rows: { t('.cached') => observatory_percentage(@traffic[:cached_ratio]) })
+
+    = render('observatory/shared/panel', title: t('.thread_seconds'),
+             headline: @traffic[:thread_seconds].round(1).to_s, state: :ok,
+             subtitle: t('.consumed'),
+             rows: { t('.available') => (@capacity[:max_threads].to_i * window.span).round(0).to_s })
+
+  / --- Dependencies. These stay green during the incident. That is the point. ---
+
+  .grid.grid-cols-1.gap-4 class="md:grid-cols-2 xl:grid-cols-3"
+    = render(partial: 'observatory/dashboards/mysql', locals: { sample: @mysql })
+    = render(partial: 'observatory/dashboards/redis', locals: { sample: @redis })
+    = render(partial: 'observatory/dashboards/sidekiq', locals: { queues: @queues, processes: @sidekiq })
+
+  / --- What is consuming capacity ---
+
+  .cell-auto.card.p-5.column.gap-4 class="ring-1 ring-white/5"
+    .row.items-center.justify-between
+      span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.top_routes')
+      = link_to(t('.all_routes'), routes_path(carried_params), class: 'link yellow text-xs')
+
+    span class="text-[11px] text-gray-600"
+      = t('.thread_seconds_explainer')
+
+    .column.gap-2
+      - @top_routes.each do |endpoint, measurements|
+        - share = @traffic[:thread_seconds].to_f.positive? ? measurements[:thread_seconds] / @traffic[:thread_seconds] : 0
+        .column.gap-1
+          .row.items-baseline.justify-between.gap-4.text-sm
+            = link_to(endpoint, route_path(endpoint: endpoint, **carried_params), class: 'link yellow truncate')
+            .row.items-baseline.gap-3.shrink-0
+              span.text-gray-500 class="text-[11px]"
+                = t('.n_requests', count: observatory_count(measurements[:count]))
+              span.text-gray-200 = "#{ measurements[:thread_seconds].round(1) }s"
+          = observatory_bar(share, state: share > 0.5 ? :warning : :ok)
+
+  / --- Long-running requests, if any ---
+
+  - if @long.any?
+    .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-amber-500/20"
+      span class="text-xs uppercase tracking-wider text-amber-400" = t('.long_running')
+      .column.gap-2
+        - @long.each do |trace|
+          .row.items-baseline.justify-between.gap-4.text-sm
+            = link_to(trace.endpoint, request_path(trace, **carried_params), class: 'link yellow truncate')
+            .row.items-baseline.gap-4.shrink-0.text-xs
+              span.text-gray-500 = "#{ observatory_count(trace.query_count) } #{ t('.lookups') }"
+              span.text-gray-500 = observatory_percentage(trace.cached_query_ratio) + ' ' + t('.cached')
+              span.text-amber-300 = observatory_duration(trace.duration_ms)
+
+  / --- Supervisor and release ---
+
+  .grid.grid-cols-1.gap-4 class="md:grid-cols-2"
+    = render(partial: 'observatory/dashboards/watchdog', locals: { event: @watchdog })
+    = render(partial: 'observatory/dashboards/release', locals: { deployment: @deployment })
+
+  / --- Observatory's own health. A monitoring system that is quietly broken
+  /     while still looking installed is its own outage. ---
+
+  = render(partial: 'observatory/dashboards/diagnostics', locals: { health: @health })

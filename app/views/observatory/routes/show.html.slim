@@ -1,0 +1,97 @@
+.column.gap-y-6
+
+  .cell-auto.column.gap-2
+    = link_to("← #{ t('.back') }", routes_path(carried_params), class: 'link yellow text-xs')
+    h1.text-xl.font-light.text-white.break-all = @endpoint
+
+  - if @summary.nil?
+    .cell-auto.card.p-8.text-center class="ring-1 ring-white/5"
+      span.text-sm.text-gray-500 = t('.no_data')
+  - else
+    .grid.grid-cols-2.gap-4 class="md:grid-cols-4"
+      = render('observatory/shared/panel', title: t('.traffic'),
+               headline: observatory_count(@summary[:count]), state: :ok,
+               subtitle: t('.requests'),
+               rows: { t('.errors') => @summary[:error_count],
+                       t('.crawlers') => observatory_count(@summary[:crawler_count]) })
+
+      = render('observatory/shared/panel', title: t('.latency'),
+               headline: observatory_duration(Observatory::Histogram.percentile(@summary[:histogram], 0.95, @summary[:count])),
+               state: :ok, subtitle: 'p95',
+               rows: { 'p50' => observatory_duration(Observatory::Histogram.percentile(@summary[:histogram], 0.50, @summary[:count])),
+                       'p99' => observatory_duration(Observatory::Histogram.percentile(@summary[:histogram], 0.99, @summary[:count])),
+                       t('.max') => observatory_duration(@summary[:duration_max_ms]) })
+
+      = render('observatory/shared/panel', title: t('.queries'),
+               headline: observatory_count((@summary[:query_count_sum].to_f / [@summary[:count], 1].max).round),
+               state: :ok, subtitle: t('.per_request'),
+               rows: { t('.cached') => observatory_percentage(@summary[:cached_query_ratio]),
+                       t('.worst') => observatory_count(@summary[:query_count_max]) })
+
+      = render('observatory/shared/panel', title: t('.capacity'),
+               headline: "#{ @summary[:thread_seconds].round(1) }s", state: :ok,
+               subtitle: t('.thread_seconds'),
+               rows: { t('.allocations') => observatory_count((@summary[:allocation_sum].to_f / [@summary[:count], 1].max).round) })
+
+    - if @baseline
+      .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+        span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.against_baseline')
+        span class="text-[11px] text-gray-600" = t('.baseline_explainer')
+        .grid.grid-cols-2.gap-4 class="md:grid-cols-4 text-xs"
+          - [[t('.average_duration'), @summary[:average_duration_ms], @baseline[:average_duration_ms], :duration],
+             [t('.queries_per_request'), @summary[:query_count_sum].to_f / [@summary[:count], 1].max, @baseline[:average_query_count], :count],
+             [t('.cached_ratio'), @summary[:cached_query_ratio], @baseline[:cached_query_ratio], :ratio],
+             [t('.allocations'), @summary[:allocation_sum].to_f / [@summary[:count], 1].max, @baseline[:average_allocations], :count]].each do |label, now, before, format|
+            - multiple = before.to_f.positive? ? (now.to_f / before.to_f) : nil
+            .column.gap-1
+              span.text-gray-500 = label
+              .row.items-baseline.gap-2
+                span class="#{ multiple && multiple > 2 ? 'text-amber-300' : 'text-gray-200' }"
+                  - if format == :duration
+                    = observatory_duration(now)
+                  - elsif format == :ratio
+                    = observatory_percentage(now)
+                  - else
+                    = observatory_count(now.round)
+                - if multiple
+                  span class="text-[10px] text-gray-600" = "#{ multiple.round(1) }×"
+
+    - if @rollups.any?
+      .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+        span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.over_time')
+        .grid.grid-cols-1.gap-6 class="md:grid-cols-3"
+          .column.gap-2
+            span class="text-[11px] text-gray-500" = t('.requests')
+            = observatory_sparkline(@rollups.map(&:count), colour: '#60a5fa')
+          .column.gap-2
+            span class="text-[11px] text-gray-500" = t('.average_duration')
+            = observatory_sparkline(@rollups.map(&:average_duration_ms), colour: '#fbbf24')
+          .column.gap-2
+            span class="text-[11px] text-gray-500" = t('.queries')
+            = observatory_sparkline(@rollups.map { |rollup| rollup.average_query_count }, colour: '#34d399')
+
+    - if @shapes.any?
+      .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+        span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.query_shapes')
+        .column.gap-2
+          - @shapes.each do |shape|
+            .column.gap-1.p-3.rounded class="bg-white/[0.02]"
+              .row.items-baseline.justify-between.gap-4
+                code.text-xs.text-gray-300.break-all.flex-1 = shape[:fingerprint].to_s.truncate(180)
+                .row.gap-4.shrink-0.text-xs
+                  span.text-gray-200 = "#{ observatory_count(shape[:count]) }×"
+                  span.text-gray-500
+                    = observatory_percentage(shape[:count].positive? ? shape[:cached].to_f / shape[:count] : 0, 0)
+              - if shape[:call_site].present?
+                code class="text-[11px] text-amber-300/90 break-all" = shape[:call_site]
+
+    - if @traces.any?
+      .cell-auto.card.p-5.column.gap-3 class="ring-1 ring-white/5"
+        span.text-xs.uppercase.tracking-wider.text-gray-500 = t('.slowest_requests')
+        .column.gap-2
+          - @traces.each do |trace|
+            .row.items-baseline.justify-between.gap-4.text-xs
+              = link_to(trace.started_at.strftime('%d %b %H:%M:%S'), request_path(trace, **carried_params), class: 'link yellow')
+              .row.gap-4.shrink-0
+                span.text-gray-500 = observatory_count(trace.query_count) + ' ' + t('.lookups')
+                span.text-gray-300 = observatory_duration(trace.duration_ms)

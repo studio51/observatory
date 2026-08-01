@@ -1,0 +1,7 @@
+/ The time range. A plain form inside the Turbo Frame — the house convention is
+/ HTML over the wire before reaching for Stimulus, and a select that submits its
+/ own form needs nothing more.
+.row.items-center.gap-1
+  - Observatory::ApplicationController::PERIODS.each_key do |option|
+    = link_to(option, url_for(request.query_parameters.merge(period: option)),
+              class: "px-2 py-1 text-xs rounded #{ option == period ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300' }")
