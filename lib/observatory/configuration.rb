@@ -187,7 +187,15 @@ module Observatory
       @slow_query_share           = 0.60
       @puma_saturation_duration   = 10.0
       @pool_wait_threshold        = 0.05
-      @queue_drain_threshold      = 3_600.0
+      # The drain estimate above which a backlog stops being acceptable. Four
+      # hours, deliberately generous: this application routinely builds a
+      # half-million-job queue during a full platform sync, and at 56 jobs a
+      # second that clears in about two and a half hours with nothing wrong.
+      # Both queue rules read this — below it and stable is classified healthy,
+      # above it and rising is a regression — so one value keeps them from
+      # contradicting each other.
+      #
+      @queue_drain_threshold      = 14_400.0
 
       @max_query_groups          = 200
       # Fingerprinting costs roughly 1.5 microseconds per query (measured; see

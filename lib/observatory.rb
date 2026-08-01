@@ -15,6 +15,11 @@ require "observatory/execution/request"
 require "observatory/execution/job"
 require "observatory/traffic/classifier"
 require "observatory/traffic/client_identity"
+require "observatory/histogram"
+require "observatory/analysis/evidence"
+require "observatory/analysis/finding"
+require "observatory/analysis/rule"
+require "observatory/analysis/window"
 
 # Causal observability for Rails.
 #
