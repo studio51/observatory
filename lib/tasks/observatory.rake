@@ -42,3 +42,45 @@ namespace :observatory do
     end
   end
 end
+
+namespace :observatory do
+  namespace :demo do
+    desc "Reproduce the incident this system exists to explain (development only)"
+    task incident: :environment do
+      result = Observatory::Demo.reproduce_incident!
+
+      puts "  #{result[:traces]} requests staged\n\n"
+      puts result[:report]
+      puts "\n  Open #{Rails.application.routes.url_helpers.devops_observatory_path rescue "/devops/observatory"}"
+    end
+
+    desc "List the available demonstration scenarios"
+    task list: :environment do
+      Observatory::Demo.scenarios.each { |name, description| puts format("  %-24s %s", name, description) }
+    end
+
+    desc "Run one scenario: rake observatory:demo:run[slow_sql]"
+    task :run, [ :scenario ] => :environment do |_task, args|
+      Observatory::Demo.run!(args[:scenario] || :cached_query_explosion)
+
+      puts "  Scenario staged. Run `rake observatory:analyse` or open the dashboard."
+    end
+
+    desc "Delete every row the demonstration scenarios created"
+    task clear: :environment do
+      puts "  #{Observatory::Demo.clear!} demo rows deleted"
+    end
+  end
+
+  desc "Run the detection rules now and print what they found"
+  task analyse: :environment do
+    findings = Observatory::Analysis::Engine.evaluate
+
+    if findings.empty?
+      puts "  No findings. Infrastructure being healthy is not the same as nothing being wrong,"
+      puts "  so this means the rules ran and found nothing — not that they did not run."
+    else
+      puts findings.map(&:to_text).join("\n\n#{"=" * 78}\n\n")
+    end
+  end
+end
