@@ -8,6 +8,12 @@ require "observatory/log_sink"
 require "observatory/pipeline"
 require "observatory/probes/puma"
 require "observatory/probes/database"
+require "observatory/probes/redis"
+require "observatory/probes/sidekiq"
+require "observatory/probes/process"
+require "observatory/retention"
+require "observatory/sampler"
+require "observatory/runtime"
 require "observatory/collectors/active_record"
 require "observatory/collectors/action_controller"
 require "observatory/collectors/cache"
@@ -71,6 +77,46 @@ module Observatory
       require "observatory/collectors/net_http"
 
       Observatory::Collectors::NetHttp.install!
+    end
+
+    initializer "observatory.sidekiq" do
+      next unless defined?(::Sidekiq)
+
+      require "observatory/sidekiq/middleware"
+
+      Observatory::Sidekiq::Middleware.install!
+    end
+
+    # The engine owns its migrations. Adding them to the host's migration paths
+    # rather than copying them in means `db:migrate` picks them up wherever the
+    # engine lives, and an upgrade is a `bundle update` rather than a rake task
+    # plus a diff review.
+    #
+    initializer "observatory.migrations" do |app|
+      next if app.root.to_s == root.to_s
+
+      config.paths["db/migrate"].expanded.each do |path|
+        app.config.paths["db/migrate"] << path
+      end
+    end
+
+    initializer "observatory.connection" do
+      ActiveSupport.on_load(:active_record) do
+        Observatory::Record.connect_to_configured_database!
+      end
+    end
+
+    # Background threads start after boot, never during it. This application runs
+    # Puma with `preload_app!`, so a thread created before the fork simply does
+    # not exist in the workers — and does not say so. `on_worker_boot` in
+    # `config/puma.rb` covers the clustered case; this covers everything else.
+    #
+    config.after_initialize do
+      Observatory::Runtime.start!
+    end
+
+    rake_tasks do
+      load File.expand_path("../tasks/observatory.rake", __dir__)
     end
   end
 end

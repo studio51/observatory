@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
+require "observatory/histogram"
 require "observatory/pipeline/buffer"
+require "observatory/pipeline/aggregator"
+require "observatory/pipeline/writer"
 
 module Observatory
 
@@ -31,7 +34,14 @@ module Observatory
 
       Safely.call("pipeline.submit") do
         decision = Sampling::Decision.call(execution)
-        return nil unless decision.keep?
+
+        # Rollups see *every* execution, traces only the sampled ones. Counting
+        # rates from a 1% sample of a skewed distribution produces confident
+        # nonsense; this is the line that stops that happening.
+        #
+        Aggregator.record(execution, retained: decision.keep?)
+
+        next unless decision.keep?
 
         payload = Serializer.call(execution, decision)
 
