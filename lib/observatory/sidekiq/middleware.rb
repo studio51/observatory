@@ -54,7 +54,13 @@ module Observatory
         #
         def call(_worker, job, queue, &block)
           return yield unless Observatory.enabled?
-          return yield if Middleware.internal?(job)
+
+          # Fail *open* on the skip decision too. This runs before the job does,
+          # so anything raising here doesn't degrade monitoring — it destroys the
+          # job being monitored, which is the one outcome this engine promises
+          # never to cause.
+          #
+          return yield if Safely.call("sidekiq.server.internal", fallback: false) { Middleware.internal?(job) }
 
           context = Safely.call("sidekiq.server.start") { Middleware.build_context(job, queue) }
           return yield if context.nil?
@@ -157,7 +163,7 @@ module Observatory
         #
         def internal?(job)
           job["class"].to_s.start_with?(NAMESPACE) ||
-            job.dig("args", 0, "job_class").to_s.start_with?(NAMESPACE)
+            wrapped_class(job).to_s.start_with?(NAMESPACE)
         end
 
         # Build the execution context for a job.
@@ -190,9 +196,36 @@ module Observatory
         # @return [String]
         #
         def job_class_for(job)
-          wrapped = job["wrapped"] || job.dig("args", 0, "job_class")
+          (wrapped_class(job) || job["class"]).to_s
+        end
 
-          (wrapped || job["class"]).to_s
+        # The wrapped class name an ActiveJob payload carries, if this is one.
+        #
+        # @param job [Hash] the job payload.
+        #
+        # @return [String, nil] the wrapped class name, or nil for a plain worker.
+        #
+        def wrapped_class(job)
+          job["wrapped"] || active_job_payload(job)&.dig("job_class")
+        end
+
+        # The serialised ActiveJob payload, when the job is a wrapped one.
+        #
+        # ActiveJob's Sidekiq adapter puts a single Hash in `args`. A plain
+        # `Sidekiq::Worker` puts its own positional arguments there instead, and
+        # those are whatever the caller passed — an Integer id, a GlobalID
+        # string, an Array. Reaching into `args[0]` with `dig` raises `TypeError`
+        # on every one of them, so the type has to be established first rather
+        # than assumed.
+        #
+        # @param job [Hash] the job payload.
+        #
+        # @return [Hash, nil] the ActiveJob payload, or nil for a plain worker.
+        #
+        def active_job_payload(job)
+          first = job["args"].is_a?(Array) ? job["args"].first : nil
+
+          first if first.is_a?(Hash)
         end
 
         # When the job was pushed.
