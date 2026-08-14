@@ -3,9 +3,13 @@
 > Causal observability for Rails. Not "is it up?" — "what is consuming capacity,
 > why, and what proves it?"
 
-Observatory is a self-contained Rails engine. It currently lives in-tree at
-`engines/observatory` inside games.directory and is loaded as a path gem; it
-depends on nothing in that application, so extracting it is a directory move.
+Observatory is a self-contained Rails engine. `rails` and `view_component` are
+its only hard dependencies; Puma, Sidekiq, MySQL and Redis are each detected at
+boot and instrumented through a guarded adapter, so it installs cleanly into an
+application that uses none of them.
+
+It was built in-tree at `engines/observatory` inside
+[games.directory](https://games.directory) and extracted here with its history.
 
 ## The problem it exists to solve
 
@@ -80,7 +84,23 @@ Ruby 4.0.5, YJIT on, coverage off (`COVERAGE=0 bin/rails test test/lib/observato
 ## Installation
 
 ```ruby
-gem "observatory", path: "engines/observatory"
+gem "studio51-observatory"
+```
+
+Mount it wherever your application puts operator tooling, behind whatever gate
+that tooling already sits behind — Observatory ships no authentication of its
+own, on purpose:
+
+```ruby
+# config/routes.rb
+mount(Observatory::Engine, at: "/observatory", as: :observatory)
+```
+
+```ruby
+# config/initializers/observatory.rb
+Observatory.configure do |config|
+  config.parent_controller = "Admin::ApplicationController"
+end
 ```
 
 ```ruby
@@ -131,25 +151,24 @@ authentication headers, no query strings, no URLs for outbound calls (host only 
 this application puts API keys in Steam query strings and bearer tokens in PSN
 headers). Route templates, not paths.
 
-## Extracting this as a gem
+## Development
 
-The engine is already self-contained. To extract:
+The suite runs against a dummy Rails application under `test/dummy`, on SQLite —
+which also exercises the path a host without MySQL takes, since the MySQL probe
+detects the adapter and disables itself.
 
-1. `git subtree split -P engines/observatory -b observatory` (history preserved).
-2. Replace `inherit_from: ../../.rubocop.yml` in `.rubocop.yml` with the
-   `inherit_gem` / `plugins` / `require` block from the host's config.
-3. Decide the licence — `observatory.gemspec` currently inherits the host
-   repository's proprietary terms, which is a deliberate placeholder.
-4. Confirm the gem name is free on rubygems.org; if not, change `spec.name` (the
-   `Observatory` namespace and `lib/observatory.rb` entry point stay as they are).
-5. Point the host at it: `gem "observatory", github: "…"`.
-
-Nothing else changes. `rails`, `view_component` and `activerecord` are the only
-hard dependencies; Puma, Sidekiq, mysql2 and redis are each detected at boot and
-instrumented through a guarded adapter, so the gem installs cleanly in an
-application that uses none of them.
+```sh
+bundle install
+bundle exec rake          # the suite
+bundle exec rake benchmark # the overhead budgets, which need a quiet machine
+bundle exec rubocop
+```
 
 ## Documentation
 
-- `docs/observatory/architecture.md` — the audit, the design and the risk register
-- `docs/observatory/runbook.md` — how to operate, disable and debug it
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the audit, the design and the risk register
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — how to operate, disable and debug it
+
+## Licence
+
+Apache-2.0 © Studio51 Solutions. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+# The dashboard's templates are Slim, so the engine requires it rather than
+# assuming the host already has. A host that does not use Slim itself would
+# otherwise get `MissingExactTemplate` on every Observatory page: Slim registers
+# its handler through its own railtie when required, and Bundler does not
+# auto-require a gem it only sees as a transitive dependency.
+#
+require "slim"
+
+# The request explorer filters inside a Turbo Frame, so its helper has to be
+# available for the same reason Slim does — a transitive dependency is resolved
+# by Bundler but never required by it.
+#
+require "turbo-rails"
+
 require "observatory/current"
 require "observatory/trace"
 require "observatory/sampling/decision"
@@ -98,6 +112,13 @@ module Observatory
 
     initializer "observatory.sidekiq" do
       next unless defined?(::Sidekiq)
+
+      # `Sidekiq::Stats` and `Sidekiq::Queue` live in `sidekiq/api`, which
+      # `require "sidekiq"` does not pull in. Without this the queue probe
+      # reports itself unavailable in any host that has not required the API
+      # itself, and the queue rules quietly never run.
+      #
+      require "sidekiq/api"
 
       require "observatory/sidekiq/middleware"
 

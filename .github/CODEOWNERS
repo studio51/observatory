@@ -1,0 +1,4 @@
+# Studio51 standard: default owner for everything in the repo.
+# The owner must be a real GitHub user (or an existing team); GitHub marks
+# unknown owners as invalid. Adjust per-path as the team grows.
+*       @pacMakaveli

@@ -157,6 +157,8 @@ module Observatory
     attr_accessor :release_resolver            # callable returning the active release identifier
     attr_accessor :parent_controller           # the host controller the dashboard inherits from, by name
     attr_accessor :deployment_marker_path      # file holding the deployed SHA, watched for changes
+    attr_accessor :back_link_path              # host path the dashboard links back to; nil renders no link
+    attr_accessor :back_link_label             # the label for that link
 
     # Build a configuration populated with the production-safe defaults.
     #
@@ -248,6 +250,13 @@ module Observatory
       #
       @parent_controller      = "ActionController::Base".freeze
       @deployment_marker_path = "tmp/pids/deploy.last-success".freeze
+
+      # Where "back" goes is the host's business — it is the one link on the
+      # dashboard that points out of the engine, and no route of the host's can
+      # be assumed to exist. Unset, the link is simply not rendered.
+      #
+      @back_link_path  = nil
+      @back_link_label = "← Back"
     end
 
     # Apply every {ENVIRONMENT_OVERRIDES} entry present in the given environment.

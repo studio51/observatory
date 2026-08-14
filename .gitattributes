@@ -1,0 +1,19 @@
+# Studio51 standard
+* text=auto eol=lf
+
+# Keep binaries binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Collapse generated/vendored files in diffs and language stats
+*.lock linguist-generated=true
+*.min.js linguist-generated=true
+*.min.css linguist-generated=true
+dist/** linguist-generated=true
+vendor/** linguist-vendored=true

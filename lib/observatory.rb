@@ -146,6 +146,20 @@ module Observatory
       config.parent_controller.to_s.constantize
     end
 
+    # Where the dashboard's one outward link points, if the host set one.
+    #
+    # Accepts a path string or a callable, because the useful destination is
+    # often a route helper the engine cannot name — and calling it lazily is
+    # what keeps the engine from depending on the host's routes existing.
+    #
+    # @return [String, nil] the path, or nil to render no link at all.
+    #
+    def back_link_path
+      value = config.back_link_path
+
+      value.respond_to?(:call) ? value.call : value
+    end
+
     # The host application's root, used to render call sites relatively.
     #
     # @return [String, nil]

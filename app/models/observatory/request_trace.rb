@@ -27,6 +27,24 @@ module Observatory
     scope :between, ->(from, to) { where(started_at: from..to) }
     scope :recent_first, -> { order(started_at: :desc) }
 
+    # "This row had not finished by the given time" — `started_at + duration_ms`
+    # compared against a bind parameter.
+    #
+    # Adding a duration held in one column to a timestamp held in another is the
+    # one piece of arithmetic the three adapters spell differently, and there is
+    # no portable SQL for it. Everything else Observatory queries is plain
+    # comparison and aggregation, so this is the only dialect switch in the gem.
+    #
+    # @return [String] a WHERE fragment taking one bind parameter.
+    #
+    def self.still_running_at
+      case connection_db_config.adapter.to_s
+      when /mysql/    then "DATE_ADD(started_at, INTERVAL duration_ms * 1000 MICROSECOND) >= ?"
+      when /postgres/ then "started_at + (duration_ms * INTERVAL '1 millisecond') >= ?"
+      else                 "datetime(started_at, '+' || (duration_ms / 1000.0) || ' seconds') >= ?"
+      end
+    end
+
     # --- Shape of the problem ---
 
     scope :slow, ->(seconds = Observatory.config.slow_request_threshold) { where(duration_ms: (seconds * 1_000)..) }
@@ -115,7 +133,7 @@ module Observatory
           .where(process_id:, hostname:)
           .where.not(id:)
           .where(started_at: ..finished_at)
-          .where("DATE_ADD(started_at, INTERVAL duration_ms * 1000 MICROSECOND) >= ?", started_at)
+          .where(self.class.still_running_at, started_at)
           .recent_first
           .limit(limit)
     end

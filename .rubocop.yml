@@ -1,23 +1,62 @@
-# Observatory · Studio51 · rails
+# Observatory · Studio51 · ruby-gem
 #
-# Inherits the host application's configuration so the engine is linted to the
-# same house style while it lives in-tree, and only re-scopes the Studio51 cops'
-# `Include` patterns — those are written relative to the config file that
-# declares them, so `lib/**/*.rb` at the repository root does not match
-# `engines/observatory/lib`.
+# Omakase Ruby styling + Performance cops + the Studio51 house cops, the only
+# accepted RuboCop config across Studio51 Ruby repos.
 #
-# On extraction to a standalone gem, replace the `inherit_from` line with the
-# `inherit_gem` / `plugins` / `require` block from the root `.rubocop.yml`. That
-# is the only change this file needs.
+# Add `rubocop-rails-omakase` and `rubocop-performance` to the Gemfile's
+# :development group, plus `rubocop-studio51` (git-sourced). RuboCop must be
+# >= 1.80 to target Ruby 4.0; older releases crash on the 4.0 parser.
 #
-inherit_from: ../../.rubocop.yml
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
 
+plugins:
+  - rubocop-performance
+
+require:
+  - rubocop-studio51
+
+# House overrides go below; keep them minimal.
+
+# Studio51 house style: multiline hash / array / argument lists MUST carry a
+# trailing comma on their last item, so adding the next line is a one-line diff.
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: consistent_comma
+
+# Studio51 comment style puts a blank line after a namespace module / `class << self`
+# opening (breathing room before the first documented member). Allow it.
+Layout/EmptyLinesAroundModuleBody:
+  Enabled: false
+
+# Studio51 comment style puts a blank line after a class / `class << self`
+# opening (breathing room before the first documented member). Allow it.
+# Also, when a class is documented, it's followed by a blank line. Allow it.
+Layout/EmptyLinesAroundClassBody:
+  Enabled: false
+
+# Studio51 docs: documentation blocks separate prose from `@` tags with a bare
+# `#`, and end with a bare `#` when (and only when) the last line is prose.
 Studio51/CommentBlockTermination:
+  Enabled: true
   Include:
     - "app/**/*.rb"
     - "lib/**/*.rb"
 
+# Studio51 flow: a multi-statement method body breathes — empty line before
+# its final expression.
 Studio51/EmptyLineBeforeTrailingExpression:
+  Enabled: true
   Include:
     - "app/**/*.rb"
     - "lib/**/*.rb"
+
+AllCops:
+  Exclude:
+    - "test/dummy/db/schema.rb"
+    - "vendor/**/*"

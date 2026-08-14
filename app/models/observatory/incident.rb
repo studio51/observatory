@@ -66,11 +66,20 @@ module Observatory
     scope :critical, -> { where(severity: CRITICAL) }
     scope :for_rule, ->(rule) { where(rule:) }
 
+    # {SEVERITY_ORDER} as SQL, for ordering in the database.
+    #
+    # A `CASE` rather than MySQL's `FIELD()`, which exists on no other adapter.
+    # Derived from the hash so the two orderings cannot drift; the severities are
+    # a closed set of constants, never user input.
+    #
+    SEVERITY_SQL_ORDER = Arel.sql(
+      "CASE severity #{ SEVERITY_ORDER.map { |severity, rank| "WHEN '#{ severity }' THEN #{ rank }" }.join(' ') } " \
+      "ELSE #{ SEVERITY_ORDER.size } END",
+    ).freeze
+
     # Open incidents, worst first — the ordering the dashboard's headline panel uses.
     #
-    scope :by_severity, lambda {
-      order(Arel.sql("FIELD(severity, '#{CRITICAL}', '#{WARNING}', '#{INFO}')"), started_at: :desc)
-    }
+    scope :by_severity, -> { order(SEVERITY_SQL_ORDER, started_at: :desc) }
 
     # Evidence supporting the conclusion.
     #

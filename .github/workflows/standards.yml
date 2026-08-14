@@ -1,0 +1,47 @@
+name: Standards
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  readme:
+    name: README structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: README stays minimal (screenshot, title, description, navigation menu, license)
+        run: |
+          if [ ! -f README.md ]; then
+            echo "No README.md found."; exit 1
+          fi
+          bad=$(grep -E '^##[[:space:]]' README.md | sed -E 's/^##[[:space:]]+//' | grep -viE '^(navigation|docs|documentation|license)$' || true)
+          if [ -n "$bad" ]; then
+            echo "README.md has sections that belong in docs/*.md:"
+            echo "$bad" | sed 's/^/  - /'
+            echo
+            echo "Allowed top-level (##) sections: Navigation, License."
+            echo "Move overview / motivation / usage / setup prose into docs/."
+            exit 1
+          fi
+          echo "README structure OK."
+  required_files:
+    name: Required files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Every repo carries the standard files
+        run: |
+          missing=""
+          for f in README.md LICENSE CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md; do
+            [ -f "$f" ] || missing="$missing $f"
+          done
+          if [ -n "$missing" ]; then
+            echo "Missing required file(s):"
+            for f in $missing; do echo "  - $f"; done
+            echo
+            echo "The Studio51 standard requires: README.md (use), LICENSE"
+            echo "(distribute), CHANGELOG.md (release), CONTRIBUTING.md and"
+            echo "CODE_OF_CONDUCT.md (contribute)."
+            exit 1
+          fi
+          echo "Required files present."

@@ -1,0 +1,17 @@
+# Observatory's models are portable Rails DSL with no foreign keys and no
+# adapter-specific columns, so the suite runs on SQLite. That is deliberate: it
+# keeps CI free of a database service, and it exercises the path a host without
+# MySQL takes — the MySQL probe detects the adapter and disables itself.
+#
+default: &default
+  adapter: sqlite3
+  pool: 5
+  timeout: 5000
+
+test:
+  <<: *default
+  database: storage/test.sqlite3
+
+development:
+  <<: *default
+  database: storage/development.sqlite3

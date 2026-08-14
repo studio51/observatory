@@ -3,7 +3,12 @@
 require_relative "lib/observatory/version"
 
 Gem::Specification.new do |spec|
-  spec.name        = "observatory"
+  # `observatory` on RubyGems is a dormant 2011 gem for the observer pattern, so
+  # the published name carries the studio. The namespace, the entry point and
+  # `require "observatory"` are unchanged — `lib/studio51-observatory.rb` exists
+  # only so Bundler's default require resolves.
+  #
+  spec.name        = "studio51-observatory"
   spec.version     = Observatory::VERSION
   spec.authors     = [ "Vlad Radulescu" ]
   spec.email       = [ "vlad@studio51.solutions" ]
@@ -18,30 +23,27 @@ Gem::Specification.new do |spec|
     deterministic rule engine that names the constrained resource, the workload
     consuming it, and the evidence for and against that conclusion.
   TEXT
-  # Inherited from the host repository. Publishing this as an open-source gem is
-  # a deliberate decision for the maintainer to take at extraction time; until
-  # then it carries the same terms as everything else in games.directory.
-  #
-  spec.license = "Nonstandard"
+  spec.license = "Apache-2.0"
 
   spec.required_ruby_version = ">= 3.2"
 
-  spec.metadata["homepage_uri"]    = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir[
     "{app,config,db,lib}/**/*",
     "LICENSE",
+    "NOTICE",
     "README.md",
     "CHANGELOG.md",
   ]
 
-  # Hard dependencies. Observatory is a Rails engine and renders its dashboard
-  # with ViewComponent; everything else it observes is optional.
+  # Hard dependencies. Observatory is a Rails engine and its dashboard templates
+  # are Slim; everything it observes is optional.
   #
   spec.add_dependency "rails", ">= 7.1", "< 9"
-  spec.add_dependency "view_component", ">= 3.0"
+  spec.add_dependency "slim", ">= 5.0"
+  spec.add_dependency "turbo-rails", ">= 1.0"
 
   # Puma, Sidekiq, mysql2 and redis are deliberately NOT dependencies. Each is
   # detected at boot and instrumented through a guarded adapter, so Observatory
