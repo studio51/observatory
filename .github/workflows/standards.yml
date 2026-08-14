@@ -8,7 +8,7 @@ jobs:
     name: README structure
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: README stays minimal (screenshot, title, description, navigation menu, license)
         run: |
           if [ ! -f README.md ]; then
@@ -28,7 +28,7 @@ jobs:
     name: Required files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Every repo carries the standard files
         run: |
           missing=""
