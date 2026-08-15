@@ -9,7 +9,7 @@ cleanly into an application that uses none of them.
 ## Quick start
 
 ```ruby
-gem "studio51-observatory"
+gem "observatory-rails"
 ```
 
 Mount it wherever your application puts operator tooling, behind whatever gate

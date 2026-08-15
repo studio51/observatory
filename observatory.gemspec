@@ -4,11 +4,11 @@ require_relative "lib/observatory/version"
 
 Gem::Specification.new do |spec|
   # `observatory` on RubyGems is a dormant 2011 gem for the observer pattern, so
-  # the published name carries the studio. The namespace, the entry point and
-  # `require "observatory"` are unchanged — `lib/studio51-observatory.rb` exists
-  # only so Bundler's default require resolves.
+  # this is the Rails one, the way `turbo-rails` and `stimulus-rails` are. The
+  # namespace, the entry point and `require "observatory"` are unchanged —
+  # `lib/observatory-rails.rb` exists only so Bundler's default require resolves.
   #
-  spec.name        = "studio51-observatory"
+  spec.name        = "observatory-rails"
   spec.version     = Observatory::VERSION
   spec.authors     = [ "Vlad Radulescu" ]
   spec.email       = [ "vlad@studio51.solutions" ]

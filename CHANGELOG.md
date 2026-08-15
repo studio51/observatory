@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the ones that built it.
 - Apache-2.0 licence, replacing the placeholder terms inherited from the host
   repository.
+- Published as `observatory-rails`: `observatory` on RubyGems is a dormant 2011
+  gem for the observer pattern, so this is the Rails one, the way `turbo-rails`
+  and `stimulus-rails` are. The namespace and `require "observatory"` are
+  unchanged.
 - A dummy Rails application under `test/dummy`, so the suite exercises a real
   engine boot — middleware insertion, subscriber installation, migrations,
   routes and the dashboard — instead of a hand-assembled approximation. It runs
