@@ -226,7 +226,7 @@ added to the host `Gemfile` with `gem "observatory", path: "engines/observatory"
 It has its own gemspec, `lib/`, `app/`, `config/routes.rb`, `db/migrate` and
 `test/`. Extracting it to a standalone gem is a directory move plus a
 `git subtree split` — no host code lives inside it, and its only hard
-dependencies are `rails` and `view_component`. Puma, Sidekiq, mysql2 and redis
+dependencies are `rails`, `slim` and `turbo-rails`. Puma, Sidekiq, mysql2 and redis
 are **soft** dependencies, detected at boot and adapted behind version-guarded
 adapters.
 
@@ -338,3 +338,39 @@ first would mean building it twice.
 6. The `queue` database stays dormant; Observatory writes to the primary.
 7. Observatory is the sole caller of Puma's `stats`, because reading it resets
    Puma's `backlog_max` high-water mark.
+
+---
+
+## Design rules
+
+These are load-bearing, not aspirations:
+
+1. **Never block the monitored request.** No I/O on the request path. Per-request
+   work is arithmetic into a preallocated context plus one bounded-buffer push;
+   the database write happens on a different thread.
+2. **Bounded memory everywhere.** Query groups, fingerprinting, call-site capture
+   and the event buffer all have ceilings. A pathological request has a *fixed*
+   memory cost no matter how pathological it gets.
+3. **Never instrument itself.** `Observatory::Instrumentation.suppress` wraps
+   everything Observatory does on its own behalf; every subscriber returns
+   immediately when suppressed.
+4. **Fail open.** `Observatory::Safely` absorbs every exception, rate-limits the
+   report and counts the failure. Monitoring cannot turn a working request into
+   a 500.
+5. **Never fabricate a measurement.** Where a number is an estimate it is named
+   and labelled as one; where it is unmeasurable it is `nil` and rendered as
+   "unknown", never as zero.
+
+
+## Measured overhead
+
+Ruby 4.0.5, YJIT on, coverage off (`COVERAGE=0 bin/rails test test/lib/observatory/performance`):
+
+| Path | Measured | Budget |
+| --- | --- | --- |
+| Ordinary request (30 queries) | **0.102 ms** | < 1 ms |
+| Per-query collection | **5.3 µs** | < 8 µs |
+| The 86,359-query incident | **308 ms (2.14% of the request)** | < 5% |
+| Request context open + close | **0.009 ms** | < 1 ms |
+| Disabled subscriber, per query | **below measurement noise** | < 2 µs |
+
