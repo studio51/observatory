@@ -12,7 +12,7 @@ jobs:
         # Latest stable only, Studio51 does not maintain older Rubies.
         ruby: ["4.0.5"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
