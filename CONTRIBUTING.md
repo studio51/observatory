@@ -6,44 +6,60 @@ them you know them everywhere.
 
 ## Getting set up
 
-See the **Development** section of the [README](README.md) for install, run,
-test, and lint commands.
+See [docs/INSTALL.md](docs/INSTALL.md) for install, run, test, and lint
+commands. Then enable the commit hook once per clone:
+
+```
+git config core.hooksPath .githooks
+```
 
 ## Workflow
 
-Never commit to `main` directly; every change, however small, lands through a
-pull request.
+Maintainers commit straight to the integration branch, `develop` if the repo
+has one, otherwise `main`, as described in [AGENTS.md](AGENTS.md). Outside
+contributions arrive as pull requests:
 
-1. Create a branch off `main`: `feature/…`, `fix/…`, or `chore/…`.
+1. Branch off the integration branch: `feature/…`, `fix/…`, or `chore/…`.
 2. Make your change. Keep it atomic: one logical change per PR.
 3. Add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md) if the change
    is user-facing.
-4. Make sure tests and lint pass, and that your commits are verified (signed).
-5. Open a pull request with a clear description. Fill in the PR template.
+4. Make sure tests and lint pass, and that every commit is signed (verified)
+   and has you as its only author.
+5. Open a pull request against the integration branch with a clear
+   description, filling in the PR template. It is merged with a merge commit,
+   never squashed or rebased, so every commit has to stand on its own.
 
 ## Commit messages
 
-We use [Conventional Commits](https://www.conventionalcommits.org/):
+We use [Conventional Commits](https://www.conventionalcommits.org/), with a
+subject that names the change and a body that says why:
 
 ```
 feat: add globe auto-rotate toggle
 fix: correct beam arc easing at the poles
 docs: document the data.js schema
-chore: bump dependencies
+chore(deps): bump the npm group with 3 updates
 ```
+
+`.githooks/commit-msg` checks every message. It rejects `Co-authored-by`
+trailers and AI attribution (every commit has exactly one author), `fixup!` /
+`squash!` commits, and subjects that don't say anything (`fix: stuff`, `wip`).
 
 ## Code style
 
-Formatting and linting are enforced by the configs in this repo (see the
-**Development** section). Run the formatter before pushing; don't hand-format.
+Formatting and linting are enforced by the configs in this repo (see
+[docs/INSTALL.md](docs/INSTALL.md)). Run the formatter before pushing; don't
+hand-format.
 
 ## Runtime support
 
-Studio51 Solutions tracks the **latest stable runtimes only** (we stay within
-roughly two patch/minor releases of upstream) and does not maintain older
-versions — we're a small team and don't have the resources to guarantee
-backwards compatibility. If you need an older runtime supported, open an issue
-justifying the why, with a PR alongside it.
+Studio51 Solutions tracks the **latest stable runtimes and the latest secure
+release of every dependency** (we stay within roughly two patch/minor releases
+of upstream) and does not maintain older versions; we're a small team and
+don't have the resources to guarantee backwards compatibility. Manifests name
+dependencies without version constraints and the lockfile holds the exact
+versions. If you need something older supported or held back, open an issue
+justifying the why.
 
 ## Code of Conduct
 
