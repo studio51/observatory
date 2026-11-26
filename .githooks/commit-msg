@@ -1,0 +1,60 @@
+#!/bin/sh
+# Studio51 standard commit-msg hook (Common Standard, "Workflow conventions").
+#
+# Rejects a commit message before the commit exists when it:
+#   - carries a Co-authored-by trailer (commits have one author: the owner),
+#   - carries AI attribution ("Generated with Claude Code" and friends),
+#   - is a fixup!/squash! commit (history is never rewritten to fold it in),
+#   - isn't a Conventional Commit, or its description says nothing.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# CI runs this same file over every pushed commit (standards.yml, "Commits").
+#
+# Usage: commit-msg <file-holding-the-message>
+
+msg_file="$1"
+
+# Drop git's scissors section (git commit -v) and comment lines.
+msg=$(sed -e '/^# -\{24\} >8 -\{24\}$/,$d' -e '/^#/d' "$msg_file")
+subject=$(printf '%s\n' "$msg" | sed -n '/[^[:space:]]/{p;q;}')
+
+fail() {
+  printf 'commit-msg: %s\n' "$1" >&2
+  printf '  subject: %s\n' "$subject" >&2
+  exit 1
+}
+
+if printf '%s\n' "$msg" | grep -qiE '^[[:space:]]*co-authored-by:'; then
+  fail "remove the Co-authored-by trailer; every commit has one author, the signed owner."
+fi
+
+if printf '%s\n' "$msg" | grep -qiE 'generated (with|by) .*(claude|copilot|cursor|codex|chatgpt|gemini)|noreply@anthropic\.com'; then
+  fail "remove the AI attribution; agents never list themselves on a commit."
+fi
+
+case "$subject" in
+  'fixup! '* | 'squash! '* | 'amend! '*)
+    fail "fixup/squash commits are not allowed; history is never rewritten, so make the commit right." ;;
+  'Merge '* | 'Revert "'*)
+    exit 0 ;; # git's own merge and revert subjects
+esac
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+if ! printf '%s\n' "$subject" | grep -qE "^($types)(\([^()]+\))?!?: [^[:space:]]"; then
+  fail "use a Conventional Commit subject, e.g. 'fix(auth): refresh expired tokens before retrying'."
+fi
+
+if [ "${#subject}" -gt 100 ]; then
+  fail "keep the subject under 100 characters; put the detail in the body."
+fi
+
+description=$(printf '%s\n' "$subject" | sed -E 's/^[^:]+: *//' | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:][:punct:]]+$//')
+case "$description" in
+  wip | fix | fixes | fixed | update | updates | updated | change | changes | misc | stuff | \
+  tweak | tweaks | cleanup | 'clean up' | temp | tmp | test | tests | work | more | minor | \
+  'small fix' | 'minor fix' | 'minor changes' | typo | review | 'address review' | \
+  'address comments' | 'pr feedback' | 'review feedback' | done | save | '')
+    fail "say what changed, not that something did ('$description' doesn't say anything)." ;;
+esac
+
+exit 0

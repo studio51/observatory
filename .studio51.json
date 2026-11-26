@@ -1,0 +1,11 @@
+{
+  "owner": "studio51",
+  "name": "observatory",
+  "title": "Observatory",
+  "type": "library",
+  "stack": "ruby-gem",
+  "addons": [],
+  "license": "Apache-2.0",
+  "visibility": "public",
+  "standard": "common"
+}

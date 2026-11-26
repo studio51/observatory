@@ -1,17 +1,15 @@
 # Studio51 standard repository settings.
 #
-# Declarative GitHub configuration applied by the "Settings" GitHub App
-# (https://github.com/apps/settings). Every repo in the studio51 and
-# games-directory orgs is configured identically so the contribution flow is
-# the same everywhere. See the Common Standard, "GitHub repository settings".
+# Every repo in the studio51 and games-directory orgs is configured identically
+# (Common Standard, "GitHub repository settings").
 #
-# A few requirements cannot be expressed through this app yet; they are marked
-# MANUAL below and are applied as a repository ruleset by hand:
-#   - Verified (signed) commits required on main.
-#   - Pull requests restricted to collaborators.
-#   - Default merge commit message set to the pull request title.
-#   - Allow comments on individual commits (org/repo default, kept on).
-#   - Auto-close issues with merged linked pull requests (GitHub default).
+# `npx @studio51/create settings` applies all of this through the GitHub API,
+# ruleset included. This file mirrors it for the GitHub "Settings" app
+# (https://github.com/apps/settings) wherever that app is installed; keep the
+# two in step (cli/lib/settings.js in the standards repo).
+#
+# GitHub defaults kept on, not set here: comments on individual commits, and
+# auto-closing issues when a linked pull request merges.
 
 repository:
   # Features every repo keeps enabled.
@@ -20,12 +18,11 @@ repository:
   has_wiki: true
   has_discussions: true
 
-  # Merge strategy: merge commits allowed; default message is the PR title.
-  # (merge_commit_* set the squash/merge message; PR title default is MANUAL
-  #  in repo settings where the app build lacks the field.)
+  # Merge commits only: never squash, never rebase. The merge commit takes the
+  # pull request's title and body.
   allow_merge_commit: true
-  allow_squash_merge: true
-  allow_rebase_merge: true
+  allow_squash_merge: false
+  allow_rebase_merge: false
   merge_commit_title: PR_TITLE
   merge_commit_message: PR_BODY
 
@@ -36,19 +33,23 @@ repository:
   # Require contributors to sign off on commits made through the web UI.
   web_commit_signoff_required: true
 
-# Branch protection for main. A pull request is required before merging; direct
-# pushes are rejected. Signed-commit enforcement is applied as a ruleset
-# (MANUAL) because the Settings app does not reliably set required_signatures.
-branches:
-  - name: main
-    protection:
-      required_pull_request_reviews:
-        # Require a PR before merging without forcing an approval count.
-        required_approving_review_count: 0
-        dismiss_stale_reviews: true
-      # Add CI job contexts here per stack, e.g. ["CI", "Standards"].
-      required_status_checks: null
-      enforce_admins: false
-      # Restrict who can push to collaborators only (null = no extra allowlist
-      # beyond org/repo collaborators).
-      restrictions: null
+# Signed commits only on every integration and release branch, with force
+# pushes and deletion blocked. There is deliberately no pull request
+# requirement and no required status check: work lands on these branches
+# directly, and either would block it.
+rulesets:
+  - name: Studio51 standard
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include:
+          - "~DEFAULT_BRANCH"
+          - refs/heads/develop
+          - refs/heads/main
+          - refs/heads/master
+        exclude: []
+    rules:
+      - type: required_signatures
+      - type: non_fast_forward
+      - type: deletion

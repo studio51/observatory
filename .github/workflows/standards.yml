@@ -1,7 +1,7 @@
 name: Standards
 on:
   push:
-    branches: [main]
+    branches: [develop, main, master]
   pull_request:
 jobs:
   readme:
@@ -32,9 +32,11 @@ jobs:
       - name: Every repo carries the standard files
         run: |
           missing=""
-          for f in README.md LICENSE CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md; do
+          for f in README.md CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md; do
             [ -f "$f" ] || missing="$missing $f"
           done
+          # A fork may keep its upstream license as LICENSE.md or LICENSE.txt.
+          [ -f LICENSE ] || [ -f LICENSE.md ] || [ -f LICENSE.txt ] || missing="$missing LICENSE"
           if [ -n "$missing" ]; then
             echo "Missing required file(s):"
             for f in $missing; do echo "  - $f"; done
@@ -45,3 +47,45 @@ jobs:
             exit 1
           fi
           echo "Required files present."
+  commits:
+    name: Commits
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: One signed author, meaningful messages (Common Standard, "Workflow conventions")
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f .githooks/commit-msg ]; then
+            echo "No .githooks/commit-msg; scaffold it with: npx @studio51/create update"; exit 1
+          fi
+          fields='{sha, verified: .commit.verification.verified, message: .commit.message} | @json'
+          if [ "$EVENT" = "pull_request" ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits" --jq ".[] | $fields" > commits.jsonl
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] ||
+            ! gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$AFTER" --jq ".commits[] | $fields" > commits.jsonl 2>/dev/null; then
+            # New branch, or the old head is gone: check the pushed head.
+            gh api "repos/$GITHUB_REPOSITORY/commits/$AFTER" --jq "$fields" > commits.jsonl
+          fi
+          failed=0
+          while IFS= read -r commit; do
+            sha=$(printf '%s' "$commit" | jq -r '.sha[0:7]')
+            printf '%s' "$commit" | jq -r '.message' > "$RUNNER_TEMP/message"
+            if [ "$(printf '%s' "$commit" | jq -r '.verified')" != "true" ]; then
+              echo "::error::$sha is not signed, or GitHub can't verify its signature."
+              failed=1
+            fi
+            if ! reason=$(sh .githooks/commit-msg "$RUNNER_TEMP/message" 2>&1); then
+              echo "::error::$sha $(printf '%s' "$reason" | head -1)"
+              failed=1
+            fi
+          done < commits.jsonl
+          [ "$failed" -eq 0 ] && echo "$(wc -l < commits.jsonl | tr -d ' ') commit(s) OK."
+          exit "$failed"
